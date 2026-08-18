@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createAdminClient, adminErrorMessage } from '@/lib/supabase/admin'
 import { OBSERVATION_RUBRIC, REGION_CENTRES } from '@/lib/config'
 
 export const runtime = 'nodejs'
@@ -120,6 +120,8 @@ export async function POST(request){
     if(rows.length>1000)return NextResponse.json({error:msg('Please import no more than 1,000 rows at a time.','Mỗi lần chỉ nhập tối đa 1.000 dòng.')},{status:400})
 
     const admin=createAdminClient()
+    const {error:adminReadyError}=await admin.from('profiles').select('id').limit(1)
+    if(adminReadyError)return NextResponse.json({error:adminErrorMessage(adminReadyError)},{status:500})
     const summary=result()
 
     if(kind==='users'){
@@ -224,5 +226,5 @@ export async function POST(request){
     }
 
     return NextResponse.json({ok:true,kind,total:rows.length,...summary})
-  }catch(e){return NextResponse.json({error:e.message||'Import failed'},{status:500})}
+  }catch(e){return NextResponse.json({error:adminErrorMessage(e)||'Import failed'},{status:500})}
 }
