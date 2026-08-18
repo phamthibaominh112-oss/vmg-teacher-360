@@ -162,13 +162,25 @@ export async function POST(request){
         }
 
         let authUser=authByEmail.get(email)
+        const authAlreadyExisted=Boolean(authUser)
         if(!authUser){
           const password=clean(r.temporary_password)
           if(password.length<8){pushError(summary,row,msg('temporary_password must be at least 8 characters for new accounts','Mật khẩu tạm cho tài khoản mới phải có ít nhất 8 ký tự.'));continue}
-          const {data:created,error}=await admin.auth.admin.createUser({email,password,email_confirm:true,app_metadata:{vmg_role:role}})
+          const {data:created,error}=await admin.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{full_name:name},app_metadata:{vmg_role:role}})
           if(error){pushError(summary,row,error.message);continue}
           authUser=created.user;authByEmail.set(email,authUser);summary.created++
         }else summary.updated++
+
+        // Keep Auth metadata aligned with the spreadsheet as well. This repairs
+        // accounts created during earlier timed-out imports where the profile trigger
+        // temporarily fell back to the email prefix as the display name.
+        if(authAlreadyExisted){
+          const {error:authSyncError}=await admin.auth.admin.updateUserById(authUser.id,{
+            user_metadata:{full_name:name},
+            app_metadata:{vmg_role:role}
+          })
+          if(authSyncError){pushError(summary,row,authSyncError.message);continue}
+        }
 
         const {error}=await admin.from('profiles').upsert({
           id:authUser.id,email,full_name:name,role,
