@@ -127,21 +127,57 @@ export async function DELETE(request){
     const gate=await requireAdmin()
     if(gate.error)return gate.error
     const body=await request.json()
-    const id=clean(body.id)
-    if(!id)return NextResponse.json({error:'Missing account id'},{status:400})
-    if(id===gate.requester.id)return NextResponse.json({error:'You cannot remove your own access account.'},{status:400})
+    const requestedIds=Array.isArray(body.ids)?body.ids:[body.id]
+    const ids=[...new Set(requestedIds.map(clean).filter(Boolean))]
+    if(!ids.length)return NextResponse.json({error:'Missing account id(s)'},{status:400})
+    if(ids.length>100)return NextResponse.json({error:'Maximum 100 accounts per bulk request.'},{status:400})
+    if(ids.includes(gate.requester.id))return NextResponse.json({error:'You cannot remove your own access account.'},{status:400})
 
-    // Preserve historical observations, cases, training records and auditability.
-    // "Remove account" disables sign-in and archives the profile instead of erasing evidence.
+    // Preserve observations, incidents, KPI, training and audit history.
+    // Bulk removal is intentionally limited to Teacher accounts.
     const admin=createAdminClient()
-    const {error:authError}=await admin.auth.admin.updateUserById(id,{ban_duration:'876000h'})
-    if(authError)return NextResponse.json({error:adminErrorMessage(authError)},{status:400})
-    const {error:profileError}=await admin.from('profiles').update({
-      is_active:false,
-      employment_status:'inactive',
-      updated_at:new Date().toISOString()
-    }).eq('id',id)
-    if(profileError)return NextResponse.json({error:adminErrorMessage(profileError)},{status:400})
-    return NextResponse.json({ok:true,archived:true,id})
+    const {data:targets,error:targetError}=await admin.from('profiles').select('id,full_name,email,role,is_active').in('id',ids)
+    if(targetError)return NextResponse.json({error:adminErrorMessage(targetError)},{status:400})
+
+    if(ids.length>1){
+      const invalid=(targets||[]).filter(x=>x.role!=='teacher').map(x=>x.full_name||x.email||x.id)
+      if(invalid.length)return NextResponse.json({error:`Bulk removal is limited to Teacher accounts. Non-teacher selection: ${invalid.slice(0,5).join(', ')}`},{status:400})
+    }
+
+    const eligible=(targets||[]).filter(x=>x.id!==gate.requester.id&&x.is_active!==false)
+    if(!eligible.length)return NextResponse.json({ok:true,archived:true,removed_count:0,failures:[]})
+
+    const successful=[]
+    const failures=[]
+    // Keep admin-auth calls bounded so large selections do not overload the Auth API.
+    for(let i=0;i<eligible.length;i+=8){
+      const slice=eligible.slice(i,i+8)
+      const results=await Promise.allSettled(slice.map(u=>admin.auth.admin.updateUserById(u.id,{ban_duration:'876000h'})))
+      results.forEach((result,index)=>{
+        const user=slice[index]
+        if(result.status==='fulfilled'&&!result.value.error)successful.push(user.id)
+        else{
+          const err=result.status==='fulfilled'?result.value.error:result.reason
+          failures.push({id:user.id,email:user.email,error:adminErrorMessage(err)})
+        }
+      })
+    }
+
+    if(successful.length){
+      const {error:profileError}=await admin.from('profiles').update({
+        is_active:false,
+        employment_status:'inactive',
+        updated_at:new Date().toISOString()
+      }).in('id',successful)
+      if(profileError)return NextResponse.json({error:adminErrorMessage(profileError),removed_count:0,failures},{status:400})
+    }
+
+    return NextResponse.json({
+      ok:failures.length===0,
+      archived:true,
+      id:ids.length===1?ids[0]:undefined,
+      removed_count:successful.length,
+      failures
+    },{status:failures.length&&successful.length===0?400:200})
   }catch(e){return NextResponse.json({error:adminErrorMessage(e)},{status:500})}
 }

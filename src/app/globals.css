@@ -736,3 +736,22 @@ button,input,select,textarea{font-size:14px;line-height:1.45}
 @media(max-width:1100px){.handbook-grid{grid-template-columns:repeat(2,1fr)}.handbook-steps{grid-template-columns:1fr 1fr}.handbook-steps article:nth-child(2){border-right:0}.handbook-steps article:nth-child(-n+2){border-bottom:1px solid #eceff3}}
 @media(max-width:760px){.account-admin-note{display:grid}.account-admin-note b{white-space:normal}.handbook-hero{grid-template-columns:1fr;padding:23px}.handbook-mark{border-left:0;border-top:1px solid rgba(255,255,255,.18);padding:16px 0 0;text-align:left}.handbook-grid{grid-template-columns:1fr}.handbook-steps{grid-template-columns:1fr}.handbook-steps article{border-right:0!important;border-bottom:1px solid #eceff3!important}.handbook-steps article:last-child{border-bottom:0!important}}
 .standards-quicklink{width:100%;margin:0 0 18px;border:1px solid #e3e7ee;background:linear-gradient(135deg,#f7fbff,#fff8f6);border-radius:18px;padding:16px 18px;display:grid;grid-template-columns:42px 1fr 24px;gap:13px;align-items:center;text-align:left;color:#18243a;box-shadow:0 8px 24px rgba(24,36,56,.04)}.standards-quicklink>span{width:42px;height:42px;border-radius:13px;background:#17375c;color:#fff;display:grid;place-items:center;font-size:18px;font-weight:900}.standards-quicklink div{display:grid;gap:4px}.standards-quicklink b{font-size:13.5px}.standards-quicklink small{font-size:11.5px;line-height:1.5;color:#6c7788}.standards-quicklink i{font-style:normal;color:#c81933;font-size:18px}.standards-quicklink:hover{transform:translateY(-1px);border-color:#dfc8cf;box-shadow:0 11px 30px rgba(24,36,56,.07)}
+
+
+/* =========================================================
+   V14 · BULK ACCOUNT ADMIN
+   R&D/BOD can multi-select active Teacher accounts and archive
+   sign-in access while preserving academic/audit history.
+   ========================================================= */
+.access-cols-v14{grid-template-columns:42px 1.46fr .88fr .68fr 1fr .88fr .7fr 1.02fr!important}
+.bulk-account-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 12px;padding:13px 15px;background:#fff;border:1px solid #e1e6ed;border-radius:16px;box-shadow:0 8px 22px rgba(26,38,58,.04)}
+.bulk-select-summary{display:flex;align-items:center;gap:11px;min-width:0}.bulk-select-summary>div{display:grid;gap:3px}.bulk-select-summary b{font-size:13px;color:#18243a}.bulk-select-summary small{font-size:11px;line-height:1.45;color:#747f90}
+.bulk-account-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.bulk-account-actions .btn{min-height:38px}
+.bulk-delete-btn{min-width:142px}
+.admin-check{position:relative;display:inline-grid;width:22px;height:22px;place-items:center;cursor:pointer;flex:0 0 auto}.admin-check input{position:absolute;opacity:0;pointer-events:none}.admin-check span{width:20px;height:20px;border:2px solid #cbd3df;border-radius:6px;background:#fff;display:grid;place-items:center;transition:.15s}.admin-check input:checked+span{border-color:#c81933;background:#c81933}.admin-check input:checked+span:after{content:'✓';font-size:13px;font-weight:900;color:#fff;line-height:1}.admin-check:hover span{border-color:#c81933}
+.account-select-cell{display:grid;place-items:center}.select-head{text-align:center}.selection-placeholder{font-style:normal;color:#c5ccd7;font-size:12px}
+.selected-account-row{background:#fff7f8!important;box-shadow:inset 3px 0 0 #c81933}
+@media(max-width:900px){
+  .bulk-account-toolbar{align-items:flex-start;flex-direction:column}
+  .bulk-account-actions{width:100%;justify-content:flex-start}
+}

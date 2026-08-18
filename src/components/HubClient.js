@@ -58,6 +58,8 @@ export default function HubClient({profile}){
   const [modal,setModal]=useState(null)
   const [toast,setToast]=useState('')
   const [notifOpen,setNotifOpen]=useState(false)
+  const [selectedAccountIds,setSelectedAccountIds]=useState([])
+  const [bulkAccountProgress,setBulkAccountProgress]=useState(null)
 
   const flash=(m)=>{setToast(m);setTimeout(()=>setToast(''),2600)}
   const canRemove=DELETE_ROLES.includes(profile.role)
@@ -595,10 +597,42 @@ export default function HubClient({profile}){
         <button className="onboarding-card featured" onClick={()=>setView('imports')}><span className="onboarding-icon">⇩</span><span><b>{t(lang,'bulkImport')}</b><small>{bi(lang,'Create or update a whole centre, region or staff list from CSV / Excel.','Tạo hoặc cập nhật cả trung tâm, khu vực hay danh sách nhân sự từ CSV / Excel.')}</small></span><i>→</i></button>
       </div>
       <div className="account-admin-note"><b>{bi(lang,'Account data is repairable','Dữ liệu tài khoản có thể đồng bộ lại')}</b><span>{bi(lang,'If an earlier timed-out import created display names from email prefixes, re-import the same Excel file once. Existing accounts are matched by email and the correct full_name is written back automatically.','Nếu lần nhập trước bị timeout làm tên hiển thị thành mã/email, chỉ cần nhập lại đúng file Excel đó một lần. Hệ thống đối chiếu theo email và tự ghi lại full_name chính xác.')}</span></div>
-      <div className="panel"><div className="table-wrap"><div className="table">
-        <div className="tr th access-cols-v10"><span>{bi(lang,'User','Người dùng')}</span><span>{t(lang,'role')}</span><span>{bi(lang,'Staff code','Mã NS')}</span><span>{bi(lang,'Access scope','Phạm vi')}</span><span>{bi(lang,'Job title','Chức danh')}</span><span>{t(lang,'status')}</span><span>{bi(lang,'Manage','Quản lý')}</span></div>
-        {data.users.map(u=><div className="tr access-cols-v10" key={u.id}><span className="teacher-cell"><AvatarPic user={u}/><span><b>{u.full_name}</b><small>{u.email||u.id.slice(0,8)}</small></span></span><span><b>{ROLE_LABELS[u.role]?.[lang]||u.role}</b></span><span><b>{u.staff_code||u.teacher_code||'—'}</b></span><span><b>{userScope(u)}</b></span><span><b>{u.job_title||'—'}</b></span><span><span className={`pill ${u.is_active===false?'red':'green'}`}>{u.is_active===false?bi(lang,'Inactive','Ngưng hoạt động'):bi(lang,'Active','Đang hoạt động')}</span></span><span className="row-actions account-actions"><button className="btn small secondary" onClick={()=>setModal({type:'edit-user',user:u})}>{bi(lang,'Edit','Sửa')}</button>{u.id!==profile.id&&u.is_active!==false&&<button className="btn small danger" onClick={()=>archiveUserAccount(u)}>{bi(lang,'Remove','Xóa')}</button>}</span></div>)}
-      </div></div></div>
+      {(()=>{
+        const selectable=data.users.filter(u=>u.role==='teacher'&&u.is_active!==false&&u.id!==profile.id)
+        const selectableIds=selectable.map(u=>u.id)
+        const selectedSet=new Set(selectedAccountIds)
+        const allSelected=selectableIds.length>0&&selectableIds.every(id=>selectedSet.has(id))
+        const toggleOne=id=>setSelectedAccountIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id])
+        const toggleAll=()=>setSelectedAccountIds(allSelected?[]:selectableIds)
+        return <>
+          <div className="bulk-account-toolbar">
+            <div className="bulk-select-summary">
+              <label className="admin-check"><input type="checkbox" checked={allSelected} onChange={toggleAll}/><span/></label>
+              <div><b>{bi(lang,`${selectedAccountIds.length} teachers selected`,`${selectedAccountIds.length} giáo viên đã chọn`)}</b><small>{bi(lang,'Only active Teacher accounts can be selected for bulk removal. Historical academic records are retained.','Chỉ tài khoản Giáo viên đang hoạt động mới được chọn để xóa hàng loạt. Toàn bộ lịch sử chuyên môn vẫn được giữ lại.')}</small></div>
+            </div>
+            <div className="bulk-account-actions">
+              <button className="btn secondary" onClick={toggleAll} disabled={!selectableIds.length}>{allSelected?bi(lang,'Clear all','Bỏ chọn tất cả'):bi(lang,'Select all teachers','Chọn tất cả GV')}</button>
+              {!!selectedAccountIds.length&&<button className="btn secondary" onClick={()=>setSelectedAccountIds([])}>{bi(lang,'Clear selection','Bỏ chọn')}</button>}
+              <button className="btn danger bulk-delete-btn" disabled={!selectedAccountIds.length||!!bulkAccountProgress} onClick={()=>bulkArchiveUserAccounts(selectedAccountIds)}>
+                {bulkAccountProgress?bi(lang,`Removing ${bulkAccountProgress.done}/${bulkAccountProgress.total}…`,`Đang xóa ${bulkAccountProgress.done}/${bulkAccountProgress.total}…`):bi(lang,`Remove selected (${selectedAccountIds.length})`,`Xóa đã chọn (${selectedAccountIds.length})`)}
+              </button>
+            </div>
+          </div>
+          <div className="panel"><div className="table-wrap"><div className="table">
+            <div className="tr th access-cols-v14"><span className="select-head">✓</span><span>{bi(lang,'User','Người dùng')}</span><span>{t(lang,'role')}</span><span>{bi(lang,'Staff code','Mã NS')}</span><span>{bi(lang,'Access scope','Phạm vi')}</span><span>{bi(lang,'Job title','Chức danh')}</span><span>{t(lang,'status')}</span><span>{bi(lang,'Manage','Quản lý')}</span></div>
+            {data.users.map(u=>{
+              const selectableRow=u.role==='teacher'&&u.is_active!==false&&u.id!==profile.id
+              return <div className={`tr access-cols-v14 ${selectedSet.has(u.id)?'selected-account-row':''}`} key={u.id}>
+                <span className="account-select-cell">{selectableRow?<label className="admin-check"><input type="checkbox" checked={selectedSet.has(u.id)} onChange={()=>toggleOne(u.id)}/><span/></label>:<i className="selection-placeholder">—</i>}</span>
+                <span className="teacher-cell"><AvatarPic user={u}/><span><b>{u.full_name}</b><small>{u.email||u.id.slice(0,8)}</small></span></span>
+                <span><b>{ROLE_LABELS[u.role]?.[lang]||u.role}</b></span><span><b>{u.staff_code||u.teacher_code||'—'}</b></span><span><b>{userScope(u)}</b></span><span><b>{u.job_title||'—'}</b></span>
+                <span><span className={`pill ${u.is_active===false?'red':'green'}`}>{u.is_active===false?bi(lang,'Inactive','Ngưng hoạt động'):bi(lang,'Active','Đang hoạt động')}</span></span>
+                <span className="row-actions account-actions"><button className="btn small secondary" onClick={()=>setModal({type:'edit-user',user:u})}>{bi(lang,'Edit','Sửa')}</button>{u.id!==profile.id&&u.is_active!==false&&<button className="btn small danger" onClick={()=>archiveUserAccount(u)}>{bi(lang,'Remove','Xóa')}</button>}</span>
+              </div>
+            })}
+          </div></div></div>
+        </>
+      })()}
     </>
   }
 
@@ -719,6 +753,26 @@ export default function HubClient({profile}){
   async function createUser(form){const res=await fetch('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...form,ui_lang:lang})});const out=await res.json();if(!res.ok){const raw=out.error||'';const friendly=/admin key|api key|project/i.test(raw)?bi(lang,'Account provisioning is not connected to this project yet. Update the server admin secret in Vercel, then redeploy.','Chức năng tạo tài khoản chưa kết nối đúng với project hiện tại. Hãy cập nhật secret key quản trị trên Vercel rồi redeploy.'):raw||bi(lang,'Could not create the account.','Không thể tạo tài khoản.');flash(friendly);return}setModal(null);flash(bi(lang,'Account created and access assigned.','Đã tạo tài khoản và phân quyền.'));afterAction()}
   async function updateUserAccount(form){const res=await fetch('/api/admin/users',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({...form,ui_lang:lang})});const out=await res.json();if(!res.ok){flash(out.error||bi(lang,'Could not update the account.','Không thể cập nhật tài khoản.'));return}setModal(null);flash(bi(lang,'Account details and access have been updated.','Đã cập nhật thông tin và quyền truy cập.'));afterAction()}
   async function archiveUserAccount(user){if(!confirm(bi(lang,`Remove sign-in access for ${user.full_name}? Historical observations, cases and training records will be kept.`,`Xóa quyền đăng nhập của ${user.full_name}? Lịch sử dự giờ, sự vụ và đào tạo vẫn được giữ lại.`)))return;const res=await fetch('/api/admin/users',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:user.id})});const out=await res.json();if(!res.ok){flash(out.error||bi(lang,'Could not remove the account.','Không thể xóa tài khoản.'));return}flash(bi(lang,'Account access removed; historical records were preserved.','Đã xóa quyền truy cập; lịch sử dữ liệu vẫn được bảo toàn.'));afterAction()}
+  async function bulkArchiveUserAccounts(ids){
+    const unique=[...new Set(ids)].filter(Boolean)
+    if(!unique.length)return
+    if(!confirm(bi(lang,`Remove sign-in access for ${unique.length} selected teachers? Their observation, incident, KPI, training and audit history will be preserved.`,`Xóa quyền đăng nhập của ${unique.length} giáo viên đã chọn? Lịch sử dự giờ, sự vụ, KPI, đào tạo và audit vẫn được giữ nguyên.`)))return
+    const batches=[];for(let i=0;i<unique.length;i+=20)batches.push(unique.slice(i,i+20))
+    let removed=0;const failures=[]
+    setBulkAccountProgress({done:0,total:unique.length})
+    try{
+      for(const batch of batches){
+        const res=await fetch('/api/admin/users',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:batch})})
+        const out=await res.json().catch(()=>({error:`HTTP ${res.status}`}))
+        if(!res.ok){failures.push(out.error||`HTTP ${res.status}`)}
+        else{removed+=Number(out.removed_count||0);if(out.failures?.length)failures.push(...out.failures.map(x=>x.error||String(x)))}
+        setBulkAccountProgress({done:Math.min(unique.length,removed+failures.length),total:unique.length})
+      }
+      setSelectedAccountIds([])
+      flash(failures.length?bi(lang,`${removed} accounts removed; ${failures.length} need review.`, `Đã xóa ${removed} tài khoản; ${failures.length} tài khoản cần kiểm tra lại.`):bi(lang,`${removed} teacher accounts removed. Historical records were preserved.`,`Đã xóa ${removed} tài khoản GV. Toàn bộ lịch sử dữ liệu vẫn được bảo toàn.`))
+      await afterAction()
+    }finally{setBulkAccountProgress(null)}
+  }
   async function saveTouchpoint(form){const {error}=await supabase.from('teacher_touchpoints').insert({...form,owner_id:profile.id,owner_name:profile.full_name});if(error)flash(error.message);else{setModal(null);flash(bi(lang,'Check-in recorded.','Đã ghi nhận lượt theo dõi.'));afterAction()}}
   async function approveUpgrade(id,teacherId,proposedLevel){const {error:e1}=await supabase.from('upgrade_recommendations').update({status:'approved',reviewed_by:profile.id,reviewed_at:new Date().toISOString(),review_note:'Approved in VMG Teacher 360'}).eq('id',id);if(e1){flash(e1.message);return}const {error:e2}=await supabase.from('profiles').update({professional_level:proposedLevel}).eq('id',teacherId);if(e2){flash(e2.message);return}flash(bi(lang,'Level change approved and the teacher has been notified.','Đã duyệt thay đổi cấp độ và thông báo đến giáo viên.'));afterAction()}
   async function rejectUpgrade(id){const note=prompt(bi(lang,'Review note / reason for rejection','Ghi chú / lý do từ chối'))||bi(lang,'Rejected after review','Từ chối sau khi xem xét');const {error}=await supabase.from('upgrade_recommendations').update({status:'rejected',reviewed_by:profile.id,reviewed_at:new Date().toISOString(),review_note:note}).eq('id',id);if(error)flash(error.message);else{flash(bi(lang,'Level proposal declined.','Đã từ chối đề xuất thay đổi cấp độ.'));afterAction()}}
