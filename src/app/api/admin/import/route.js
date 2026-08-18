@@ -118,9 +118,18 @@ export async function POST(request){
     if(!IMPORT_PERMISSIONS[kind]?.includes(requester.role))return NextResponse.json({error:msg('You do not have permission for this import type.','Bạn không có quyền thực hiện loại nhập dữ liệu này.')},{status:403})
     if(!file||typeof file.arrayBuffer!=='function')return NextResponse.json({error:msg('Please attach a CSV or Excel file.','Vui lòng đính kèm file CSV hoặc Excel.')},{status:400})
 
-    const rows=await parseRows(file)
-    if(!rows.length)return NextResponse.json({error:msg('The file has no data rows.','File không có dòng dữ liệu nào.')},{status:400})
-    if(rows.length>1000)return NextResponse.json({error:msg('Please import no more than 1,000 rows at a time.','Mỗi lần chỉ nhập tối đa 1.000 dòng.')},{status:400})
+    const allRows=await parseRows(file)
+    if(!allRows.length)return NextResponse.json({error:msg('The file has no data rows.','File không có dòng dữ liệu nào.')},{status:400})
+    if(allRows.length>1000)return NextResponse.json({error:msg('Please import no more than 1,000 rows at a time.','Mỗi lần chỉ nhập tối đa 1.000 dòng.')},{status:400})
+
+    // Keep each serverless request deliberately small. Large account imports require
+    // several Auth Admin calls and can otherwise hit the Vercel function timeout.
+    const offset=Math.max(0,Number(form.get('offset')||0)||0)
+    const requestedBatch=Number(form.get('batch_size')||0)||0
+    const defaultBatch=kind==='users'?24:60
+    const batchSize=Math.min(kind==='users'?30:100,Math.max(1,requestedBatch||defaultBatch))
+    const rows=allRows.slice(offset,offset+batchSize)
+    if(!rows.length)return NextResponse.json({ok:true,kind,total:allRows.length,processed:0,next_offset:offset,has_more:false,created:0,updated:0,skipped:0,failed:0,errors:[]})
 
     const admin=createAdminClient()
     const {error:adminReadyError}=await admin.from('profiles').select('id').limit(1)
@@ -133,7 +142,7 @@ export async function POST(request){
       const authRes=await admin.auth.admin.listUsers({page:1,perPage:1000})
       const authByEmail=new Map((authRes.data?.users||[]).filter(x=>x.email).map(x=>[lower(x.email),x]))
       for(let i=0;i<rows.length;i++){
-        const r=rows[i],row=i+2,email=lower(r.email),name=clean(r.full_name),role=normaliseRole(r.role||'teacher')
+        const r=rows[i],row=offset+i+2,email=lower(r.email),name=clean(r.full_name),role=normaliseRole(r.role||'teacher')
         let centre=clean(r.centre).toUpperCase(),region=n(r.region)||null
         if(!email||!name){pushError(summary,row,msg('full_name and email are required','Cần có họ tên và email.'));continue}
         if(!Object.values(ROLE_ALIASES).includes(role)){pushError(summary,row,msg(`Unknown role: ${r.role}`,`Vai trò không hợp lệ: ${r.role}`));continue}
@@ -185,7 +194,7 @@ export async function POST(request){
       const {data:existingObs}=await admin.from('observations').select('teacher_id,observed_at')
       const obsKeys=new Set((existingObs||[]).map(x=>`${x.teacher_id}|${new Date(x.observed_at).toISOString()}`))
       for(let i=0;i<rows.length;i++){
-        const r=rows[i],row=i+2,tr=(r.teacher_code?byCode.get(lower(r.teacher_code)):null)||(r.email?byEmail.get(lower(r.email)):null)
+        const r=rows[i],row=offset+i+2,tr=(r.teacher_code?byCode.get(lower(r.teacher_code)):null)||(r.email?byEmail.get(lower(r.email)):null)
         if(!tr){pushError(summary,row,msg('Teacher not found. Use teacher_code or email that already exists in Teacher 360.','Không tìm thấy giáo viên. Hãy dùng mã giáo viên hoặc email đã có trong Teacher 360.'));continue}
         const observedAt=parseDate(r.observed_at)
         if(!observedAt){pushError(summary,row,msg('observed_at is required. Recommended format: YYYY-MM-DD HH:mm','Cần có ngày dự giờ. Định dạng khuyến nghị: YYYY-MM-DD HH:mm.'));continue}
@@ -217,7 +226,7 @@ export async function POST(request){
       const {data:existingTrainings}=await admin.from('trainings').select('title,starts_at')
       const trainingKeys=new Set((existingTrainings||[]).map(x=>`${lower(x.title)}|${new Date(x.starts_at).toISOString()}`))
       for(let i=0;i<rows.length;i++){
-        const r=rows[i],row=i+2,title=clean(r.title),starts=parseDate(r.starts_at)
+        const r=rows[i],row=offset+i+2,title=clean(r.title),starts=parseDate(r.starts_at)
         if(!title||!starts){pushError(summary,row,msg('title and starts_at are required','Cần có tiêu đề và thời gian bắt đầu.'));continue}
         const trainingKey=`${lower(title)}|${new Date(starts).toISOString()}`
         if(trainingKeys.has(trainingKey)){summary.skipped++;continue}
@@ -235,7 +244,7 @@ export async function POST(request){
       const {data:existingAnnouncements}=await admin.from('announcements').select('title_en,published_at')
       const announcementKeys=new Set((existingAnnouncements||[]).map(x=>`${lower(x.title_en)}|${new Date(x.published_at).toISOString()}`))
       for(let i=0;i<rows.length;i++){
-        const r=rows[i],row=i+2,titleEn=clean(r.title_en)||clean(r.title),bodyEn=clean(r.body_en)||clean(r.body)
+        const r=rows[i],row=offset+i+2,titleEn=clean(r.title_en)||clean(r.title),bodyEn=clean(r.body_en)||clean(r.body)
         if(!titleEn||!bodyEn){pushError(summary,row,msg('title_en and body_en are required','Cần có tiêu đề và nội dung tiếng Anh.'));continue}
         const centre=clean(r.centre).toUpperCase()||null,region=n(r.region)||CENTRE_REGION[centre]||null
         const publishedAt=parseDate(r.published_at)||new Date().toISOString()
@@ -248,6 +257,7 @@ export async function POST(request){
       }
     }
 
-    return NextResponse.json({ok:true,kind,total:rows.length,...summary})
+    const nextOffset=offset+rows.length
+    return NextResponse.json({ok:true,kind,total:allRows.length,processed:rows.length,offset,next_offset:nextOffset,has_more:nextOffset<allRows.length,...summary})
   }catch(e){return NextResponse.json({error:adminErrorMessage(e)||'Import failed'},{status:500})}
 }
