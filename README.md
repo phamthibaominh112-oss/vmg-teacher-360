@@ -79,3 +79,6 @@ CMO/Centre Director visibility across borrowed teachers within the same region i
 
 The login screen does not expose demo accounts. If UAT accounts are needed, create them in Supabase or from the R&D/BOD User & Access screen; they are never exposed on the login page.
 
+
+## V12 · Google Calendar
+Automatic Google Calendar sync is available for teacher-event bookings and teacher training bookings. See `V12_UPGRADE.md` and run `supabase/V12_GOOGLE_CALENDAR.sql` once before enabling the Google Workspace service-account environment variables in Vercel.
