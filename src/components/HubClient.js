@@ -483,22 +483,35 @@ function AcademicRibbon({lang}){
 }
 
 function BrandFooter({lang}){
-  return <footer className="brand-footer">
-    <div className="brand-footer-hero">
-      <div className="footer-wordmark"><img src="/vmg-logo.png" alt="VMG English"/><div><span>{bi(lang,'ACADEMIC EXCELLENCE · TEACHER GROWTH','CHẤT LƯỢNG HỌC THUẬT · PHÁT TRIỂN GIÁO VIÊN')}</span><b>VMG TEACHER 360</b><p>{bi(lang,'A professional home for better teaching, stronger evidence and meaningful development.','Không gian chuyên môn cho giờ dạy tốt hơn, minh chứng rõ hơn và phát triển có ý nghĩa.')}</p></div></div>
-      <div className="footer-years"><strong>23</strong><span>{bi(lang,'YEARS','NĂM')}</span><small>{bi(lang,'of English education','giáo dục tiếng Anh')}</small></div>
-    </div>
-    <div className="footer-academic-ecosystem">
-      <div className="footer-ecosystem-copy"><span>{bi(lang,'ACADEMIC ECOSYSTEM','HỆ SINH THÁI HỌC THUẬT')}</span><b>{bi(lang,'Learning · Assessment · Global English','Học tập · Đánh giá · Tiếng Anh toàn cầu')}</b></div>
-      <div className="partner-logo-grid">
-        <div className="partner-logo-card cambridge-logo-card"><img src="https://www.cambridgeenglish.org/vn/Images/english-logo.svg" alt="Cambridge English"/><small>Cambridge English</small></div>
-        <div className="partner-logo-card ielts-logo-card"><span className="ielts-official-word">IELTS</span><small>International English Language Testing System</small></div>
-        <div className="partner-logo-card dark-logo-card"><img src="https://ielts.org/cdn/ielts-and-partner-logos/british-council-logo.webp?fit=cover&height=370&s=AQp7mHkWV-U13ahePygWs1-uQIiFpe5s7h8kGmykWNI&width=370" alt="British Council"/><small>British Council</small></div>
-        <div className="partner-logo-card dark-logo-card"><img src="https://ielts.org/cdn/ielts-and-partner-logos/idp-logo.webp?fit=cover&height=370&s=GTtvUtjldt0pzGKdhiVFfBhuxnVVidquPQUTjuQzt7w&width=370" alt="IDP"/><small>IDP</small></div>
+  return <footer className="brand-footer footer-mini">
+    <div className="footer-partners-row">
+      <div className="footer-partner footer-vmg">
+        <img src="/vmg-logo.png" alt="VMG English"/>
+        <div><b>VMG</b><small>{bi(lang,'English education · 23 years','Giáo dục tiếng Anh · 23 năm')}</small></div>
+      </div>
+      <div className="footer-partner">
+        <img className="cambridge-mini" src="https://www.cambridgeenglish.org/vn/Images/english-logo.svg" alt="Cambridge English"/>
+        <div><b>Cambridge English</b><small>{bi(lang,'Academic pathways','Lộ trình học thuật')}</small></div>
+      </div>
+      <div className="footer-partner">
+        <img className="bc-mini" src="https://ielts.org/cdn/ielts-and-partner-logos/british-council-logo.webp?fit=cover&height=370&s=AQp7mHkWV-U13ahePygWs1-uQIiFpe5s7h8kGmykWNI&width=370" alt="British Council"/>
+        <div><b>British Council</b><small>{bi(lang,'IELTS partner ecosystem','Hệ sinh thái đối tác IELTS')}</small></div>
+      </div>
+      <div className="footer-partner">
+        <img className="idp-mini" src="https://ielts.org/cdn/ielts-and-partner-logos/idp-logo.webp?fit=cover&height=370&s=GTtvUtjldt0pzGKdhiVFfBhuxnVVidquPQUTjuQzt7w&width=370" alt="IDP"/>
+        <div><b>IDP Education</b><small>{bi(lang,'IELTS partner ecosystem','Hệ sinh thái đối tác IELTS')}</small></div>
+      </div>
+      <div className="footer-partner footer-ielts-text">
+        <span>IELTS</span>
+        <div><b>{bi(lang,'Academic focus','Trọng tâm học thuật')}</b><small>{bi(lang,'Four skills · evidence · growth','4 kỹ năng · minh chứng · phát triển')}</small></div>
       </div>
     </div>
-    <div className="brand-footer-proof"><div><strong>CEFR</strong><span>{bi(lang,'PROGRESSION','LỘ TRÌNH')}</span><small>A2 · B1 · B2 · C1</small></div><div><strong>4</strong><span>{bi(lang,'LANGUAGE SKILLS','KỸ NĂNG NGÔN NGỮ')}</span><small>Reading · Writing · Listening · Speaking</small></div><div><strong>360°</strong><span>{bi(lang,'TEACHER DEVELOPMENT','PHÁT TRIỂN GIÁO VIÊN')}</span><small>{bi(lang,'Observe · coach · recognise','Dự giờ · coaching · ghi nhận')}</small></div><div><strong>∞</strong><span>{bi(lang,'CONTINUOUS GROWTH','PHÁT TRIỂN LIÊN TỤC')}</span><small>{bi(lang,'Learn · apply · reflect','Học · áp dụng · phản tư')}</small></div></div>
-    <div className="brand-footer-bottom"><span>© 2026 VMG English</span><span>{bi(lang,'Academic excellence is built one lesson, one reflection and one teacher at a time.','Chất lượng học thuật được xây từ từng tiết dạy, từng lần phản tư và từng giáo viên.')}</span></div>
+    <div className="footer-value-row">
+      <div><b>{bi(lang,'ACADEMIC EXCELLENCE','CHẤT LƯỢNG HỌC THUẬT')}</b><span>{bi(lang,'Observe · coach · improve','Dự giờ · coaching · cải tiến')}</span></div>
+      <div><b>{bi(lang,'CEFR PROGRESSION','LỘ TRÌNH CEFR')}</b><span>A2 · B1 · B2 · C1</span></div>
+      <div><b>{bi(lang,'TEACHER 360','GIÁO VIÊN 360')}</b><span>{bi(lang,'Evidence-based development','Phát triển dựa trên minh chứng')}</span></div>
+      <div className="footer-site"><b>VMG ENGLISH</b><span>vmgenglish.edu.vn</span></div>
+    </div>
   </footer>
 }
 

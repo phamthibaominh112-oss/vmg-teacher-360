@@ -427,3 +427,99 @@ body{font-size:15px;line-height:1.55;background:linear-gradient(180deg,#fbfaf8 0
   .brand-footer-proof>div{border-right:1px solid rgba(255,255,255,.08)!important;border-bottom:1px solid rgba(255,255,255,.08)}
   .brand-footer-proof>div:nth-child(2n){border-right:0!important}
 }
+
+/* =========================================================
+   V9 · Minimal academic trust footer
+   Reference direction: compact partner strip + slim VMG value bar.
+   This footer belongs at the end of the page; it is NOT sticky/fixed overlay.
+   ========================================================= */
+.brand-footer.footer-mini{
+  margin:0 32px 18px;
+  border-radius:0;
+  overflow:hidden;
+  background:#fff;
+  box-shadow:none;
+  border-top:2px solid #9f2134;
+}
+.footer-mini .footer-partners-row{
+  min-height:64px;
+  display:grid;
+  grid-template-columns:1.05fr 1.15fr 1fr 1fr 1.05fr;
+  align-items:stretch;
+  background:#fff;
+  color:#14213a;
+}
+.footer-mini .footer-partner{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 18px;
+  border-right:1px solid #e6e7eb;
+}
+.footer-mini .footer-partner:last-child{border-right:0}
+.footer-mini .footer-partner img{width:46px;max-height:33px;object-fit:contain;flex:0 0 auto}
+.footer-mini .footer-partner.footer-vmg img{width:48px}
+.footer-mini .footer-partner img.cambridge-mini{width:48px;max-height:35px}
+.footer-mini .footer-partner img.bc-mini{width:43px;height:31px;border-radius:4px;object-fit:contain;background:#24125d}
+.footer-mini .footer-partner img.idp-mini{width:50px;height:30px;object-fit:contain}
+.footer-mini .footer-partner>div{min-width:0;display:grid;gap:2px}
+.footer-mini .footer-partner b{font-size:9.5px;line-height:1.15;color:#17243e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.footer-mini .footer-partner small{font-size:7.2px;line-height:1.2;color:#7e899a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.footer-mini .footer-ielts-text>span{
+  font-size:17px;
+  font-weight:950;
+  letter-spacing:-.8px;
+  color:#d31335;
+  line-height:1;
+  min-width:48px;
+}
+.footer-mini .footer-value-row{
+  min-height:49px;
+  display:grid;
+  grid-template-columns:1.05fr 1.05fr 1.05fr .9fr;
+  align-items:center;
+  background:#99172e;
+  color:#fff;
+}
+.footer-mini .footer-value-row>div{
+  min-width:0;
+  padding:9px 18px;
+  border-right:1px solid rgba(255,255,255,.22);
+  display:grid;
+  gap:2px;
+}
+.footer-mini .footer-value-row>div:last-child{border-right:0;text-align:right}
+.footer-mini .footer-value-row b{font-size:8.4px;line-height:1.15;color:#fff;letter-spacing:.15px}
+.footer-mini .footer-value-row span{font-size:7px;line-height:1.2;color:rgba(255,255,255,.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.footer-mini .footer-site b{font-size:8.5px}.footer-mini .footer-site span{font-size:7.2px}
+
+/* neutralise all legacy large-footer blocks in case old rules are still loaded */
+.footer-mini .brand-footer-hero,
+.footer-mini .footer-academic-ecosystem,
+.footer-mini .brand-footer-proof,
+.footer-mini .brand-footer-bottom{display:none!important}
+
+@media(max-width:1180px){
+  .footer-mini .footer-partners-row{grid-template-columns:repeat(3,1fr)}
+  .footer-mini .footer-partner:nth-child(3){border-right:0}
+  .footer-mini .footer-partner:nth-child(-n+2){border-bottom:1px solid #eceef1}
+  .footer-mini .footer-partner:nth-child(3){border-bottom:1px solid #eceef1}
+  .footer-mini .footer-value-row{grid-template-columns:repeat(2,1fr)}
+  .footer-mini .footer-value-row>div:nth-child(2){border-right:0}
+}
+@media(max-width:760px){
+  .brand-footer.footer-mini{margin:0 16px 14px}
+  .footer-mini .footer-partners-row{grid-template-columns:1fr 1fr}
+  .footer-mini .footer-partner{padding:9px 11px}
+  .footer-mini .footer-partner:nth-child(odd){border-right:1px solid #eceef1}
+  .footer-mini .footer-partner:nth-child(even){border-right:0}
+  .footer-mini .footer-partner b{font-size:8.6px}.footer-mini .footer-partner small{font-size:6.8px}
+  .footer-mini .footer-value-row>div{padding:8px 11px}
+}
+@media(max-width:520px){
+  .footer-mini .footer-partners-row{display:flex;overflow-x:auto;min-height:58px}
+  .footer-mini .footer-partner{min-width:190px;border-right:1px solid #eceef1!important;border-bottom:0!important}
+  .footer-mini .footer-value-row{grid-template-columns:1fr 1fr}
+  .footer-mini .footer-value-row>div:nth-child(3){display:none}
+}
