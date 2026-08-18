@@ -1,28 +1,26 @@
-# Role matrix
+# VMG Teacher 360 · Role & Scope Matrix
 
-| Capability | Teacher | CMO | Centre Director | CSR | R&D | BOD | Academic Supervisor | PTNS |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Own portfolio | ✓ | | | | | | | |
-| Same-region teacher view | | ✓ | ✓ | | | | | |
-| Organisation teacher view | | | | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Log teacher case | | ✓ | ✓ | ✓ | ✓ | ✓ | | |
-| Approve centre case | | | ✓ | | ✓ | ✓ | | |
-| Observation / rubric | view own | view | view | view | ✓ | ✓ | ✓ | view |
-| Propose upgrade | | | | | ✓ | ✓ | ✓ | |
-| Approve upgrade | | | | | ✓ | ✓ | | |
-| Schedule training | | | | | ✓ | ✓ | ✓ | |
-| Request training | | ✓ | ✓ | ✓ | | | | |
-| Book catch-up / meeting | | ✓ | ✓ | | ✓ | ✓ | ✓ | |
-| Teacher HR documents | own status | view | view | view | ✓ | ✓ | view | ✓ |
-| Bulletin publish | view | view | view | view | ✓ | ✓ | view | ✓ |
-| Resource Center | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Create users | | | | | ✓ | ✓ | | |
-| Delete governed records | | | | | ✓ | ✓ | | |
+| Role | Default data scope | Location fields when creating account | Dashboard |
+|---|---|---|---|
+| Teacher | Self only | Centre required; region auto-derived | Personal performance portfolio |
+| CMO / Centre Management | Assigned centre | Centre required; region auto-derived | Centre teacher performance + cases |
+| Centre Director | Assigned centre | Centre required; region auto-derived | Centre teacher performance + cases |
+| Regional Director | Assigned region | Region required; no centre | Region dashboard + centre comparison |
+| CSR | Head Office / whole system | No region / centre | Whole-system dashboard + filters |
+| R&D | Head Office / whole system | No region / centre | Whole-system dashboard + filters + admin |
+| BOD | Head Office / whole system | No region / centre | Whole-system dashboard + filters + admin |
+| Academic Supervisor | Head Office / whole system | No region / centre | Whole-system academic dashboard |
+| PTNS | Head Office / whole system | No region / centre | Whole-system people / document dashboard |
 
-### Region model
+## Account fields
+Common: Full name, work email, temporary password, role, staff/employee code, job title, interface language.
 
-- Region 1: PVT · VTS · NKN · TBM
-- Region 2: LDN · HVG · TPU · NTI · PTA
-- Region 3: BPC
+Teacher-only: Teacher code, professional level, centre, region (derived from centre).
 
-CMO and Centre Director can cross-view teachers within their own region. This is enforced in Supabase RLS rather than only hidden in the interface.
+Centre roles: Centre; region is derived automatically.
+
+Regional Director: Region only.
+
+Head Office roles: No region or centre assignment.
+
+Only R&D / BOD can create accounts and delete governed records. Existing governance rules remain in place.

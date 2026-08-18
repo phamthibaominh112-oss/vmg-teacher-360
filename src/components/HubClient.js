@@ -3,12 +3,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { t } from '@/lib/i18n'
 import RESOURCE_CATALOG from '@/data/resources.json'
-import { ROLE_LABELS, DELETE_ROLES, USER_ADMIN_ROLES, REGION_CENTRES, INCIDENT_CATEGORIES, OBSERVATION_RUBRIC, scoreBand, incidentRisk } from '@/lib/config'
+import { ROLE_LABELS, DELETE_ROLES, USER_ADMIN_ROLES, REGION_CENTRES, HEAD_OFFICE_ROLES, REGION_SCOPE_ROLES, CENTRE_SCOPE_ROLES, INCIDENT_CATEGORIES, OBSERVATION_RUBRIC, scoreBand, incidentRisk } from '@/lib/config'
 
 const NAV = {
   teacher:['overview','portfolio','growth','observations','training','resources','bulletin','documents','support'],
   cmo:['overview','teachers','performance','incidents','training','resources','touchpoints','upgrades','documents','support'],
   centre_director:['overview','teachers','performance','incidents','training','resources','touchpoints','upgrades','documents','support'],
+  regional_director:['overview','teachers','performance','incidents','training','resources','touchpoints','upgrades','documents','support'],
   csr:['overview','teachers','incidents','coordination','training','resources','touchpoints','performance','documents','support'],
   rnd:['overview','teachers','performance','observations','training','touchpoints','upgrades','incidents','documents','support','resources','bulletin','access','imports','governance'],
   bod:['overview','teachers','performance','observations','training','touchpoints','upgrades','incidents','documents','support','resources','bulletin','access','imports','governance'],
@@ -60,7 +61,9 @@ export default function HubClient({profile}){
   const flash=(m)=>{setToast(m);setTimeout(()=>setToast(''),2600)}
   const canRemove=DELETE_ROLES.includes(profile.role)
   const canAdmin=USER_ADMIN_ROLES.includes(profile.role)
-  const globalRole=['csr','rnd','bod','academic_supervisor','ptns'].includes(profile.role)
+  const globalRole=HEAD_OFFICE_ROLES.includes(profile.role)
+  const regionRole=REGION_SCOPE_ROLES.includes(profile.role)
+  const centreRole=CENTRE_SCOPE_ROLES.includes(profile.role)
   const nav=NAV[profile.role]||['overview']
 
   const load=useCallback(async()=>{
@@ -97,7 +100,15 @@ export default function HubClient({profile}){
   async function logout(){await supabase.auth.signOut();location.href='/login'}
   const selectedTeacher=data.teachers.find(x=>x.id===selectedTeacherId)||(profile.role==='teacher'?profile:data.teachers[0])
   const roleName=ROLE_LABELS[profile.role]?.[lang]||profile.role
-  const scope=profile.role==='teacher'?(lang==='vi'?'Hồ sơ cá nhân':'Personal portfolio'):(globalRole?(lang==='vi'?'Toàn hệ thống':'All regions'):`${lang==='vi'?'Khu vực':'Region'} ${profile.region_no||'—'} · ${(REGION_CENTRES[profile.region_no]||[]).join(' · ')}`)
+  const scope=profile.role==='teacher'
+    ? (lang==='vi'?'Hồ sơ cá nhân':'Personal portfolio')
+    : globalRole
+      ? (lang==='vi'?'Toàn hệ thống':'Head Office · All regions')
+      : regionRole
+        ? `${lang==='vi'?'Khu vực':'Region'} ${profile.region_no||'—'}`
+        : centreRole
+          ? `${profile.home_centre_code||bi(lang,'Centre not assigned','Chưa gán trung tâm')}`
+          : (lang==='vi'?'Phạm vi được phân quyền':'Assigned scope')
 
   return <div className="app-shell">
     <aside className={`sidebar ${mobile?'open':''}`}>
@@ -140,40 +151,202 @@ export default function HubClient({profile}){
 
   function Overview(){
     const teacherMode=profile.role==='teacher'
-    const teachers=teacherMode?[profile]:data.teachers
-    const teacherIds=new Set(teachers.map(x=>x.id))
-    const obs=data.observations.filter(x=>teacherIds.has(x.teacher_id))
-    const avg=obs.length?Math.round(obs.reduce((a,x)=>a+Number(x.final_score||0),0)/obs.length):0
+    const [regionFilter,setRegionFilter]=useState(globalRole?'ALL':String(profile.region_no||'ALL'))
+    const [centreFilter,setCentreFilter]=useState('ALL')
+    const scopeBase=teacherMode?[profile]:data.teachers.filter(x=>{
+      if(centreRole)return !profile.home_centre_code||x.home_centre_code===profile.home_centre_code
+      if(regionRole)return !profile.region_no||Number(x.region_no)===Number(profile.region_no)
+      return true
+    })
+    const availableCentres=[...new Set(scopeBase.map(x=>x.home_centre_code).filter(Boolean))].sort()
+    const scopedTeachers=scopeBase.filter(x=>{
+      if(globalRole&&regionFilter!=='ALL'&&String(x.region_no)!==String(regionFilter))return false
+      if(centreFilter!=='ALL'&&x.home_centre_code!==centreFilter)return false
+      return true
+    })
+    const teacherIds=new Set(scopedTeachers.map(x=>x.id))
+    const scopedObs=data.observations.filter(x=>teacherIds.has(x.teacher_id)&&x.final_score!==null)
+    const scopedKpis=data.kpis.filter(x=>teacherIds.has(x.teacher_id))
+    const scopedCases=data.incidents.filter(x=>teacherIds.has(x.teacher_id))
     const weekAgo=new Date(Date.now()-7*86400000)
-    const touches=data.touchpoints.filter(x=>teacherIds.has(x.teacher_id)&&new Date(x.touch_date)>=weekAgo)
-    const touchBy={};touches.forEach(x=>touchBy[x.teacher_id]=(touchBy[x.teacher_id]||0)+1)
-    const covered=teachers.filter(x=>(touchBy[x.id]||0)>=2).length
-    const open=data.incidents.filter(x=>teacherIds.has(x.teacher_id)&&!['closed','resolved'].includes(x.status)).length
-    const nextEvents=[...data.trainings,...data.events].filter(x=>new Date(x.starts_at)>=new Date()).sort((a,b)=>new Date(a.starts_at)-new Date(b.starts_at)).slice(0,4)
-    const focus=teacherMode?(latestObs(profile.id)?.improvement_areas||profile.development_focus||bi(lang,'Build consistent learner participation and evidence of progress.','Tăng mức tham gia của học viên và tạo bằng chứng tiến bộ rõ ràng hơn.')):(lang==='vi'?'Ưu tiên giáo viên chưa đủ lượt theo dõi và có tín hiệu cần hỗ trợ lặp lại.':'Prioritise teachers with missed touchpoints and repeated risk signals.')
-    return <>
-      <section className="hero"><div><span className="kicker">{roleName} · {new Date().toLocaleDateString(lang==='vi'?'vi-VN':'en-GB',{day:'2-digit',month:'long',year:'numeric'}).toUpperCase()}</span><h2>{teacherMode?`${t(lang,'hello')}, ${profile.full_name.split(' ').slice(-1)[0]}.`:t(lang,'teacherQuality')}</h2><p>{teacherMode?(lang==='vi'?'Theo dõi hiệu suất, phản hồi, đào tạo và lịch phát triển cá nhân của bạn tại một nơi.':'Track your performance, feedback, development and upcoming commitments in one place.'):(lang==='vi'?`Dữ liệu hiển thị theo phạm vi ${roleName}; các quyết định về giáo viên cần có bằng chứng, lý do và lịch sử hoạt động rõ ràng.`:`Data is scoped to ${roleName}; people decisions require evidence, rationale and an auditable trail.`)}</p></div><div className="hero-aside"><span>{t(lang,'developmentFocus').toUpperCase()}</span><b>{focus}</b><p>{teacherMode?(lang==='vi'?'Xem phản hồi, hoàn tất hành động tiếp theo và xác minh tiến bộ.':'Review feedback, complete the next action and verify progress.'):`${t(lang,'teacherTouchStandard')}.`}</p><div className="meter"><i style={{width:teacherMode?'72%':`${teachers.length?Math.round(covered/teachers.length*100):0}%`}}/></div></div></section>
-      <AcademicRibbon lang={lang}/>
-      <section className="kpi-grid">
-        <KpiCard label={t(lang,'obsScore')} value={teacherMode?(latestObs(profile.id)?.final_score??'—'):(avg||'—')} note={teacherMode?bandLabel(lang,Number(latestObs(profile.id)?.final_score||0)):bi(lang,`${obs.length} official records`,`${obs.length} hồ sơ chính thức`)} />
-        <KpiCard label={t(lang,'hvr')} value={teacherMode?(latestKpi(profile.id)?.hvr_pct?`${latestKpi(profile.id).hvr_pct}%`:'—'):(avgKpi('hvr_pct')?`${avgKpi('hvr_pct')}%`:'—')} note={lang==='vi'?'Tỷ lệ duy trì học viên':'Learner retention rate'} tone="gold" />
-        <KpiCard label={t(lang,'touchCoverage')} value={teacherMode?`${Math.min(2,touchBy[profile.id]||0)}/2`:`${covered}/${teachers.length}`} note={t(lang,'teacherTouchStandard')} tone="navy" />
-        <KpiCard label={t(lang,'openActions')} value={open} note={lang==='vi'?'Sự vụ / việc cần làm chưa đóng':'Cases / actions not closed'} tone="green" />
+    const scopedTouches=data.touchpoints.filter(x=>teacherIds.has(x.teacher_id)&&new Date(x.touch_date)>=weekAgo)
+    const touchBy={};scopedTouches.forEach(x=>touchBy[x.teacher_id]=(touchBy[x.teacher_id]||0)+1)
+    const covered=scopedTeachers.filter(x=>(touchBy[x.id]||0)>=2).length
+    const openCases=scopedCases.filter(x=>!['closed','resolved'].includes(x.status))
+    const nextEvents=[...data.trainings,...data.events.filter(x=>teacherMode?x.teacher_id===profile.id:teacherIds.has(x.teacher_id))].filter(x=>new Date(x.starts_at)>=new Date()).sort((a,b)=>new Date(a.starts_at)-new Date(b.starts_at)).slice(0,5)
+
+    if(teacherMode){
+      const teacher=profile
+      const latest=latestObs(teacher.id)
+      const kpi=latestKpi(teacher.id)
+      const intel=teacherIntel(teacher)
+      const caps=capabilityData(teacher.id)
+      const strong=[...caps].sort((a,b)=>b.score-a.score).slice(0,3)
+      const grow=[...caps].sort((a,b)=>a.score-b.score).slice(0,3)
+      const docs=Number(data.documents.find(x=>x.teacher_id===teacher.id)?.completion_pct||0)
+      const touch=Math.min(2,data.touchpoints.filter(x=>x.teacher_id===teacher.id&&new Date(x.touch_date)>=weekAgo).length)
+      const fallbackPulse=Math.round((Number(latest?.final_score||0)*.55)+(Number(kpi?.hvr_pct||0)*.25)+(touch/2*100*.1)+(docs*.1))
+      const pulse=Number(kpi?.composite_score||fallbackPulse||0)
+      const trend=data.observations.filter(x=>x.teacher_id===teacher.id&&x.final_score!==null).slice(0,10).reverse().map(x=>({label:new Date(x.observed_at).toLocaleDateString(lang==='vi'?'vi-VN':'en-GB',{month:'short'}),value:Number(x.final_score)}))
+      const booked=data.registrations.filter(x=>x.user_id===teacher.id).length
+      return <div className="portfolio-dashboard">
+        <section className="portfolio-welcome">
+          <div className="profile-snapshot">
+            <div className="profile-orbit"><div className="profile-avatar-xl">{teacher.avatar_url?<img src={teacher.avatar_url} alt=""/>:initials(teacher.full_name)}</div><ScoreRing value={pulse||0}/></div>
+            <div><span className="kicker">{bi(lang,'MY TEACHING PORTFOLIO','HỒ SƠ PHÁT TRIỂN CỦA TÔI')}</span><h2>{bi(lang,'Good to see you','Chào bạn')}, {teacher.full_name.split(' ').slice(-1)[0]}.</h2><p>{bi(lang,'Your teaching evidence, learner impact and development journey — in one motivating view.','Hiệu suất giảng dạy, tác động tới học viên và hành trình phát triển của bạn — trong một góc nhìn rõ ràng.')}</p><div className="profile-tags"><span>{teacher.professional_level||bi(lang,'Level building','Đang cập nhật level')}</span><span>{teacher.home_centre_code||'VMG'}</span><span>{bi(lang,'Growth readiness','Sẵn sàng phát triển')} {intel.upgradePotential}%</span></div></div>
+          </div>
+          <div className="portfolio-pulse"><span>{bi(lang,'PORTFOLIO PULSE','CHỈ SỐ HỒ SƠ')}</span><b>{pulse||'—'}</b><small>{kpi?.composite_score?bi(lang,'Latest recorded performance snapshot','Ảnh chụp hiệu suất gần nhất'):bi(lang,'Live portfolio signal from available evidence','Tín hiệu tổng hợp từ bằng chứng hiện có')}</small><button onClick={()=>setView('portfolio')}>{bi(lang,'Open full portfolio','Mở hồ sơ chi tiết')} →</button></div>
+        </section>
+
+        <section className="dash-stat-grid teacher-stat-grid">
+          <StatTile icon="◎" label={bi(lang,'Observation','Dự giờ')} value={latest?.final_score??'—'} suffix={latest?.final_score?' / 100':''} note={latest?.final_score?bandLabel(lang,latest.final_score):bi(lang,'Build your first evidence point','Chưa có dữ liệu chính thức')} tone="coral"/>
+          <StatTile icon="↗" label="HVR" value={kpi?.hvr_pct??'—'} suffix={kpi?.hvr_pct?'%':''} note={bi(lang,'Learner retention signal','Tín hiệu duy trì học viên')} tone="blue"/>
+          <StatTile icon="◇" label={bi(lang,'Growth readiness','Sẵn sàng phát triển')} value={intel.upgradePotential||0} suffix="%" note={intel.recommendation} tone="violet"/>
+          <StatTile icon="✓" label={bi(lang,'Check-ins this week','Theo dõi tuần này')} value={`${touch}/2`} note={bi(lang,'Meaningful development touchpoints','Lượt trao đổi phát triển có ý nghĩa')} tone="green"/>
+        </section>
+
+        <section className="portfolio-grid">
+          <article className="dash-card dash-span-8">
+            <div className="dash-head"><div><span>{bi(lang,'PERFORMANCE JOURNEY','HÀNH TRÌNH HIỆU SUẤT')}</span><h3>{bi(lang,'How your classroom evidence is moving','Dữ liệu lớp học của bạn đang tiến triển ra sao')}</h3></div><button className="mini-link" onClick={()=>setView('observations')}>{bi(lang,'All feedback','Tất cả phản hồi')} →</button></div>
+            <TrendChart points={trend} emptyText={bi(lang,'Your observation trend will appear here after scores are recorded.','Xu hướng dự giờ sẽ hiển thị khi có điểm được ghi nhận.')}/>
+          </article>
+          <article className="dash-card dash-span-4 growth-card">
+            <div className="dash-head"><div><span>{bi(lang,'NEXT BEST STEP','BƯỚC TIẾP THEO')}</span><h3>{bi(lang,'Your development focus','Trọng tâm phát triển')}</h3></div></div>
+            <div className="focus-orb"><b>{grow[0]?.score||'—'}</b><span>{grow[0]?capName(lang,grow[0].name):bi(lang,'Evidence building','Đang bổ sung bằng chứng')}</span></div>
+            <p>{latest?.smart_action||latest?.improvement_areas||teacher.development_focus||bi(lang,'Choose one observable classroom action and verify it in your next observation.','Chọn một hành động có thể quan sát trong lớp và xác minh ở lần dự giờ tiếp theo.')}</p>
+            <button className="btn soft" onClick={()=>setView('growth')}>{bi(lang,'Explore my skills','Xem năng lực của tôi')} →</button>
+          </article>
+
+          <article className="dash-card dash-span-5">
+            <div className="dash-head"><div><span>{bi(lang,'WHAT IS WORKING','ĐIỂM ĐANG LÀM TỐT')}</span><h3>{bi(lang,'Strength portfolio','Danh mục điểm mạnh')}</h3></div></div>
+            <MiniBarList items={strong.map(x=>({label:capName(lang,x.name),value:x.score,meta:`${x.evidenceCount} ${bi(lang,'evidence','bằng chứng')}`}))}/>
+          </article>
+          <article className="dash-card dash-span-3 mini-learning-card">
+            <span>{bi(lang,'LEARNING MOMENTUM','NHỊP HỌC TẬP')}</span><b>{booked}</b><strong>{bi(lang,'training bookings','lượt đăng ký đào tạo')}</strong><p>{docs}% {bi(lang,'document readiness','độ hoàn thiện hồ sơ')} · {data.upgrades.filter(x=>x.teacher_id===teacher.id&&x.status==='approved').length} {bi(lang,'approved progression steps','bước phát triển đã duyệt')}</p><button onClick={()=>setView('training')}>{bi(lang,'Go to learning hub','Đến khu đào tạo')} →</button>
+          </article>
+          <article className="dash-card dash-span-4">
+            <div className="dash-head"><div><span>{bi(lang,'COMING UP','SẮP DIỄN RA')}</span><h3>{bi(lang,'My academic calendar','Lịch phát triển của tôi')}</h3></div></div>
+            <div className="dashboard-events">{nextEvents.slice(0,4).map((e,i)=><div key={`${e.id}-${i}`}><span>{new Date(e.starts_at).getDate()}<small>{new Date(e.starts_at).toLocaleDateString(lang==='vi'?'vi-VN':'en-GB',{month:'short'})}</small></span><div><b>{e.title}</b><small>{e.location||e.event_type||'VMG'}</small></div></div>)}{!nextEvents.length&&<Empty lang={lang}/>}</div>
+          </article>
+        </section>
+      </div>
+    }
+
+    const intelRows=scopedTeachers.map(t=>({teacher:t,intel:teacherIntel(t)}))
+    const obsValues=intelRows.map(x=>x.intel.score).filter(Boolean)
+    const hvrValues=intelRows.map(x=>x.intel.hvr).filter(Boolean)
+    const avgObs=obsValues.length?Math.round(obsValues.reduce((a,b)=>a+b,0)/obsValues.length):0
+    const avgHvr=hvrValues.length?Math.round(hvrValues.reduce((a,b)=>a+b,0)/hvrValues.length):0
+    const avgReady=intelRows.length?Math.round(intelRows.reduce((a,x)=>a+x.intel.upgradePotential,0)/intelRows.length):0
+    const dist=[
+      {label:'90+',value:intelRows.filter(x=>x.intel.score>90).length},
+      {label:'81–90',value:intelRows.filter(x=>x.intel.score>=81&&x.intel.score<=90).length},
+      {label:'70–80',value:intelRows.filter(x=>x.intel.score>=70&&x.intel.score<=80).length},
+      {label:'60–69',value:intelRows.filter(x=>x.intel.score>=60&&x.intel.score<70).length},
+      {label:'<60',value:intelRows.filter(x=>x.intel.score>0&&x.intel.score<60).length}
+    ]
+    const attention=[...intelRows].filter(x=>x.intel.risk.level!=='Stable'||(x.intel.score&&x.intel.score<75)||x.intel.touchCount<2).sort((a,b)=>{
+      const riskWeight={Critical:4,Danger:3,Watch:2,Stable:1};return (riskWeight[b.intel.risk.level]-riskWeight[a.intel.risk.level])||(a.intel.score-b.intel.score)
+    }).slice(0,6)
+    const progress=[...intelRows].filter(x=>x.intel.score||x.intel.hvr).sort((a,b)=>b.intel.upgradePotential-a.intel.upgradePotential).slice(0,5)
+    const monthly={}
+    scopedObs.forEach(o=>{const d=new Date(o.observed_at);const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;(monthly[key]??=[]).push(Number(o.final_score))})
+    const trend=Object.entries(monthly).sort(([a],[b])=>a.localeCompare(b)).slice(-8).map(([key,vals])=>({label:new Date(`${key}-01`).toLocaleDateString(lang==='vi'?'vi-VN':'en-GB',{month:'short'}),value:Math.round(vals.reduce((a,b)=>a+b,0)/vals.length)}))
+    const centreRows=availableCentres.map(c=>{
+      const ts=scopedTeachers.filter(t=>t.home_centre_code===c);const ids=new Set(ts.map(t=>t.id));const os=scopedObs.filter(o=>ids.has(o.teacher_id)).map(o=>Number(o.final_score)).filter(Boolean);const ks=scopedKpis.filter(k=>ids.has(k.teacher_id)).map(k=>Number(k.hvr_pct)).filter(Boolean);const cases=openCases.filter(i=>ids.has(i.teacher_id)).length
+      return{centre:c,teachers:ts.length,obs:os.length?Math.round(os.reduce((a,b)=>a+b,0)/os.length):0,hvr:ks.length?Math.round(ks.reduce((a,b)=>a+b,0)/ks.length):0,cases}
+    }).sort((a,b)=>b.obs-a.obs)
+    const scopeTitle=globalRole
+      ? bi(lang,'Whole-system teacher performance','Hiệu suất giáo viên toàn hệ thống')
+      : regionRole
+        ? bi(lang,`Region ${profile.region_no} teacher performance`,`Hiệu suất giáo viên Khu vực ${profile.region_no}`)
+        : bi(lang,`${profile.home_centre_code||'Centre'} teacher performance`,`Hiệu suất giáo viên ${profile.home_centre_code||'trung tâm'}`)
+    const recommendations=[]
+    const missed=intelRows.filter(x=>x.intel.touchCount<2).length
+    const low=intelRows.filter(x=>x.intel.score&&x.intel.score<70).length
+    const upgrade=intelRows.filter(x=>x.intel.upgradePotential>=80&&x.intel.risk.level==='Stable').length
+    if(missed)recommendations.push({tone:'amber',title:bi(lang,`${missed} teachers need a check-in`,`${missed} giáo viên cần được theo dõi`),text:bi(lang,'Prioritise coaching / feedback before the weekly cycle closes.','Ưu tiên coaching / phản hồi trước khi kết thúc chu kỳ tuần.')})
+    if(low)recommendations.push({tone:'red',title:bi(lang,`${low} teachers below 70 observation`,`${low} giáo viên có điểm dự giờ dưới 70`),text:bi(lang,'Build targeted retraining and re-observation plans.','Lập kế hoạch đào tạo lại có mục tiêu và dự giờ lại.')})
+    if(upgrade)recommendations.push({tone:'green',title:bi(lang,`${upgrade} teachers show progression potential`,`${upgrade} giáo viên có tín hiệu sẵn sàng phát triển`),text:bi(lang,'Review evidence packs for level or higher-complexity allocation.','Rà soát hồ sơ bằng chứng để cân nhắc nâng cấp độ hoặc phân lớp cao hơn.')})
+    if(!recommendations.length)recommendations.push({tone:'blue',title:bi(lang,'Team signals are currently stable','Tín hiệu đội ngũ hiện ổn định'),text:bi(lang,'Keep observation, coaching and recognition rhythms consistent.','Duy trì đều nhịp dự giờ, coaching và ghi nhận.')})
+
+    return <div className="management-dashboard">
+      <section className="management-hero">
+        <div><span className="kicker">{bi(lang,'PEOPLE · QUALITY · EVIDENCE','CON NGƯỜI · CHẤT LƯỢNG · MINH CHỨNG')}</span><h2>{scopeTitle}</h2><p>{bi(lang,'See performance, support signals and development opportunities before deciding what the team needs next.','Nhìn rõ hiệu suất, tín hiệu cần hỗ trợ và cơ hội phát triển trước khi quyết định đội ngũ cần gì tiếp theo.')}</p></div>
+        <div className="scope-filter-card">
+          <span>{bi(lang,'DASHBOARD SCOPE','PHẠM VI DASHBOARD')}</span>
+          <div className="scope-filters">
+            {globalRole&&<select value={regionFilter} onChange={e=>{setRegionFilter(e.target.value);setCentreFilter('ALL')}}><option value="ALL">{bi(lang,'All regions','Tất cả khu vực')}</option>{[1,2,3].map(r=><option key={r} value={r}>{bi(lang,'Region','Khu vực')} {r}</option>)}</select>}
+            {(globalRole||regionRole)&&<select value={centreFilter} onChange={e=>setCentreFilter(e.target.value)}><option value="ALL">{bi(lang,'All centres','Tất cả trung tâm')}</option>{availableCentres.filter(c=>regionFilter==='ALL'||String(data.teachers.find(t=>t.home_centre_code===c)?.region_no)===String(regionFilter)).map(c=><option key={c}>{c}</option>)}</select>}
+          </div>
+          <b>{scopedTeachers.length} {bi(lang,'teachers in view','giáo viên trong phạm vi')}</b>
+        </div>
       </section>
-      <section className="grid12">
-        <div className="panel span7"><div className="panel-head"><div><span>{bi(lang,'TEAM UPDATES','CẬP NHẬT ĐỘI NGŨ')}</span><h3>{t(lang,'latestAnnouncements')}</h3></div><button className="btn ghost small" onClick={()=>setView('bulletin')}>{t(lang,'viewAll')} →</button></div><div className="notice-list">{data.announcements.slice(0,4).map(a=><div className="notice" key={a.id}><div className="notice-icon">i</div><div><b>{lang==='vi'&&a.title_vi?a.title_vi:a.title_en||a.title}</b><p>{lang==='vi'&&a.body_vi?a.body_vi:a.body_en||a.body}</p></div></div>)}{!data.announcements.length&&<Empty lang={lang}/>}</div></div>
-        <div className="panel span5"><div className="panel-head"><div><span>{bi(lang,'YOUR NEXT MOMENTS','LỊCH SẮP TỚI')}</span><h3>{t(lang,'upcoming')}</h3></div></div><div className="notice-list">{nextEvents.map((e,i)=><div className="notice" key={`${e.id}-${i}`}><div className="notice-icon">{new Date(e.starts_at).getDate()}</div><div><b>{e.title}</b><p>{fmt(e.starts_at,lang)} · {new Date(e.starts_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · {e.location||e.event_type||'VMG'}</p></div></div>)}{!nextEvents.length&&<Empty lang={lang}/>}</div></div>
+
+      <section className="dash-stat-grid management-stat-grid">
+        <StatTile icon="◎" label={bi(lang,'Teachers','Giáo viên')} value={scopedTeachers.length} note={bi(lang,'Active portfolio population','Quy mô hồ sơ đang theo dõi')} tone="violet"/>
+        <StatTile icon="↗" label={bi(lang,'Avg observation','Điểm dự giờ TB')} value={avgObs||'—'} note={`${scopedObs.length} ${bi(lang,'evidence records','hồ sơ bằng chứng')}`} tone="coral"/>
+        <StatTile icon="♡" label="HVR" value={avgHvr||'—'} suffix={avgHvr?'%':''} note={bi(lang,'Average learner retention','Duy trì học viên trung bình')} tone="blue"/>
+        <StatTile icon="!" label={bi(lang,'Open cases','Sự vụ đang mở')} value={openCases.length} note={bi(lang,'Needs ownership / closure','Cần xử lý / đóng vòng')} tone={openCases.length?'amber':'green'}/>
+        <StatTile icon="✓" label={bi(lang,'Check-in coverage','Độ phủ theo dõi')} value={scopedTeachers.length?Math.round(covered/scopedTeachers.length*100):0} suffix="%" note={`${covered}/${scopedTeachers.length} ${bi(lang,'met weekly standard','đạt chuẩn tuần')}`} tone="green"/>
       </section>
-    </>
+
+      <section className="portfolio-grid">
+        <article className="dash-card dash-span-8">
+          <div className="dash-head"><div><span>{bi(lang,'QUALITY TREND','XU HƯỚNG CHẤT LƯỢNG')}</span><h3>{bi(lang,'Observation performance over time','Hiệu suất dự giờ theo thời gian')}</h3></div><span className="metric-chip">{bi(lang,'Growth readiness','Sẵn sàng phát triển')} {avgReady}%</span></div>
+          <TrendChart points={trend} emptyText={bi(lang,'Import historical observation scores to unlock the trend line.','Nhập lịch sử dự giờ để mở biểu đồ xu hướng.')}/>
+        </article>
+        <article className="dash-card dash-span-4">
+          <div className="dash-head"><div><span>{bi(lang,'PERFORMANCE MIX','PHÂN BỐ HIỆU SUẤT')}</span><h3>{bi(lang,'Observation bands','Nhóm điểm dự giờ')}</h3></div></div>
+          <DistributionBars items={dist} total={Math.max(1,dist.reduce((a,x)=>a+x.value,0))}/>
+        </article>
+
+        <article className="dash-card dash-span-7">
+          <div className="dash-head"><div><span>{bi(lang,'WHERE TO ACT FIRST','ƯU TIÊN HÀNH ĐỘNG')}</span><h3>{bi(lang,'Teachers needing attention','Giáo viên cần được chú ý')}</h3></div><button className="mini-link" onClick={()=>setView('teachers')}>{bi(lang,'Teacher directory','Danh sách GV')} →</button></div>
+          <div className="attention-list">{attention.map(x=><TeacherAttentionCard key={x.teacher.id} item={x} lang={lang} onOpen={()=>{setSelectedTeacherId(x.teacher.id);setView('portfolio')}}/>)}{!attention.length&&<div className="positive-empty">✓ <b>{bi(lang,'No urgent teacher signals in this scope.','Không có tín hiệu giáo viên khẩn cấp trong phạm vi này.')}</b></div>}</div>
+        </article>
+        <article className="dash-card dash-span-5 recommendation-card">
+          <div className="dash-head"><div><span>{bi(lang,'RECOMMENDATION ENGINE','GỢI Ý HÀNH ĐỘNG')}</span><h3>{bi(lang,'What the data suggests next','Dữ liệu gợi ý làm gì tiếp theo')}</h3></div></div>
+          <div className="recommendation-list">{recommendations.map((r,i)=><div className={`recommendation ${r.tone}`} key={i}><i>{i+1}</i><div><b>{r.title}</b><p>{r.text}</p></div></div>)}</div>
+        </article>
+
+        {(globalRole||regionRole)&&<article className="dash-card dash-span-7">
+          <div className="dash-head"><div><span>{bi(lang,'CENTRE BENCHMARK','SO SÁNH TRUNG TÂM')}</span><h3>{bi(lang,'Compare quality signals across centres','So sánh tín hiệu chất lượng giữa các trung tâm')}</h3></div></div>
+          <div className="centre-compare">{centreRows.map(r=><CentreCompareRow key={r.centre} row={r} lang={lang}/>)}</div>
+        </article>}
+        <article className={`dash-card ${(globalRole||regionRole)?'dash-span-5':'dash-span-12'}`}>
+          <div className="dash-head"><div><span>{bi(lang,'PROGRESSION PIPELINE','NHÓM CÓ TIỀM NĂNG PHÁT TRIỂN')}</span><h3>{bi(lang,'Teachers ready for recognition or review','Giáo viên sẵn sàng được ghi nhận / đánh giá')}</h3></div></div>
+          <div className="progression-list">{progress.map((x,i)=><button key={x.teacher.id} onClick={()=>{setSelectedTeacherId(x.teacher.id);setView('portfolio')}}><span className="rank">{i+1}</span><span className="avatar">{initials(x.teacher.full_name)}</span><span><b>{x.teacher.full_name}</b><small>{x.teacher.home_centre_code||'VMG'} · {x.teacher.professional_level||bi(lang,'Level pending','Chưa có level')}</small></span><strong>{x.intel.upgradePotential}%</strong></button>)}{!progress.length&&<Empty lang={lang}/>}</div>
+        </article>
+      </section>
+    </div>
   }
 
   function Teachers(){
-    const [q,setQ]=useState(''); const [centre,setCentre]=useState('ALL')
-    const visible=data.teachers.filter(x=>(centre==='ALL'||x.home_centre_code===centre)&&(`${x.full_name} ${x.teacher_code||''}`.toLowerCase().includes(q.toLowerCase())))
-    const centres=globalRole?[...new Set(data.teachers.map(x=>x.home_centre_code).filter(Boolean))]:(REGION_CENTRES[profile.region_no]||[])
-    return <><PageIntro kicker={bi(lang,'FIND · SUPPORT · DEVELOP','TÌM · HỖ TRỢ · PHÁT TRIỂN')} title={t(lang,'teachers')} text={globalRole?(lang==='vi'?'Xem hồ sơ giáo viên theo phạm vi nghiệp vụ toàn hệ thống.':'View teacher records across the authorised organisation scope.'):(lang==='vi'?`Có thể xem giáo viên giữa các trung tâm trong Khu vực ${profile.region_no}: ${(REGION_CENTRES[profile.region_no]||[]).join(', ')}.`:`Teacher visibility across centres is enabled within Region ${profile.region_no}: ${(REGION_CENTRES[profile.region_no]||[]).join(', ')}.`)} />
-    <div className="toolbar"><label className="search">⌕<input placeholder={t(lang,'search')} value={q} onChange={e=>setQ(e.target.value)}/></label><select className="select" value={centre} onChange={e=>setCentre(e.target.value)}><option value="ALL">{lang==='vi'?'Tất cả trung tâm':'All centres'}</option>{centres.map(c=><option key={c}>{c}</option>)}</select></div>
-    <div className="panel"><div className="table-wrap"><div className="table"><div className="tr th teacher-cols"><span>{t(lang,'teachers')}</span><span>{t(lang,'centre')}</span><span>{t(lang,'level')}</span><span>{t(lang,'score')}</span><span>HVR</span><span>{t(lang,'earlyWarning')}</span><span>{t(lang,'recommendation')}</span></div>{visible.map(x=>{const intel=teacherIntel(x);return <div className="tr teacher-cols" key={x.id} onDoubleClick={()=>{setSelectedTeacherId(x.id);setView('portfolio')}}><span className="teacher-cell"><span className="avatar">{initials(x.full_name)}</span><span><b>{x.full_name}</b><small>{x.teacher_code||'—'} · {x.email||''}</small></span></span><span><b>{x.home_centre_code||'—'}</b><small>{bi(lang,'Region','Khu vực')} {x.region_no||'—'}</small></span><span><b>{x.professional_level||'—'}</b></span><span><b>{intel.score||'—'}</b><small>{intel.score?bandLabel(lang,intel.score):bi(lang,'No official score','Chưa có điểm chính thức')}</small></span><span><b>{intel.hvr?`${intel.hvr}%`:'—'}</b></span><span><RiskPill risk={intel.risk} lang={lang}/></span><span><b>{intel.recommendation}</b><small>{lang==='vi'?'Nhấp đúp để mở hồ sơ phát triển':'Double-click for full portfolio'}</small></span></div>})}{!visible.length&&<Empty lang={lang}/>}</div></div></div></>
+    const [q,setQ]=useState('')
+    const [region,setRegion]=useState(globalRole?'ALL':String(profile.region_no||'ALL'))
+    const [centre,setCentre]=useState('ALL')
+    const base=data.teachers.filter(x=>{
+      if(centreRole&&profile.home_centre_code&&x.home_centre_code!==profile.home_centre_code)return false
+      if(regionRole&&profile.region_no&&Number(x.region_no)!==Number(profile.region_no))return false
+      if(globalRole&&region!=='ALL'&&String(x.region_no)!==String(region))return false
+      return true
+    })
+    const centres=[...new Set(base.map(x=>x.home_centre_code).filter(Boolean))].sort()
+    const visible=base.filter(x=>(centre==='ALL'||x.home_centre_code===centre)&&(`${x.full_name} ${x.teacher_code||''} ${x.email||''}`.toLowerCase().includes(q.toLowerCase())))
+    const scopeText=globalRole
+      ? bi(lang,'Search the whole system, then narrow by region and centre.','Tìm trên toàn hệ thống rồi lọc theo khu vực và trung tâm.')
+      : regionRole
+        ? bi(lang,`All centres in Region ${profile.region_no}.`,`Toàn bộ trung tâm thuộc Khu vực ${profile.region_no}.`)
+        : bi(lang,`Teachers assigned to ${profile.home_centre_code||'your centre'}.`,`Giáo viên thuộc ${profile.home_centre_code||'trung tâm được phân công'}.`)
+    return <><PageIntro kicker={bi(lang,'FIND · COMPARE · DEVELOP','TÌM · SO SÁNH · PHÁT TRIỂN')} title={t(lang,'teachers')} text={scopeText}/>
+    <div className="toolbar teacher-filter-toolbar">
+      <label className="search">⌕<input placeholder={t(lang,'search')} value={q} onChange={e=>setQ(e.target.value)}/></label>
+      {globalRole&&<select className="select" value={region} onChange={e=>{setRegion(e.target.value);setCentre('ALL')}}><option value="ALL">{bi(lang,'All regions','Tất cả khu vực')}</option>{[1,2,3].map(r=><option key={r} value={r}>{bi(lang,'Region','Khu vực')} {r}</option>)}</select>}
+      {(globalRole||regionRole)&&<select className="select" value={centre} onChange={e=>setCentre(e.target.value)}><option value="ALL">{bi(lang,'All centres','Tất cả trung tâm')}</option>{centres.map(c=><option key={c}>{c}</option>)}</select>}
+      <span className="result-count">{visible.length} {bi(lang,'teachers','giáo viên')}</span>
+    </div>
+    <div className="panel"><div className="table-wrap"><div className="table"><div className="tr th teacher-cols"><span>{t(lang,'teachers')}</span><span>{t(lang,'centre')}</span><span>{t(lang,'level')}</span><span>{t(lang,'score')}</span><span>HVR</span><span>{t(lang,'earlyWarning')}</span><span>{t(lang,'recommendation')}</span></div>{visible.map(x=>{const intel=teacherIntel(x);return <div className="tr teacher-cols" key={x.id} onDoubleClick={()=>{setSelectedTeacherId(x.id);setView('portfolio')}}><span className="teacher-cell"><span className="avatar">{initials(x.full_name)}</span><span><b>{x.full_name}</b><small>{x.teacher_code||'—'} · {x.email||''}</small></span></span><span><b>{x.home_centre_code||'—'}</b><small>{bi(lang,'Region','Khu vực')} {x.region_no||'—'}</small></span><span><b>{x.professional_level||'—'}</b></span><span><b>{intel.score||'—'}</b><small>{intel.score?bandLabel(lang,intel.score):bi(lang,'No official score','Chưa có điểm chính thức')}</small></span><span><b>{intel.hvr?`${intel.hvr}%`:'—'}</b></span><span><RiskPill risk={intel.risk} lang={lang}/></span><span><b>{intel.recommendation}</b><small>{bi(lang,'Double-click for full portfolio','Nhấp đúp để mở hồ sơ phát triển')}</small></span></div>})}{!visible.length&&<Empty lang={lang}/>}</div></div></div></>
   }
 
   function Portfolio(){
@@ -305,7 +478,7 @@ export default function HubClient({profile}){
   }
 
   function Incidents(){
-    const canLog=['cmo','centre_director','csr','rnd','bod'].includes(profile.role)
+    const canLog=['cmo','centre_director','regional_director','csr','rnd','bod'].includes(profile.role)
     const rows=profile.role==='teacher'?data.incidents.filter(x=>x.teacher_id===profile.id):data.incidents
     return <><PageIntro kicker={bi(lang,'SUPPORT EARLY · HANDLE FAIRLY · CLOSE CLEARLY','HỖ TRỢ SỚM · XỬ LÝ CÔNG BẰNG · ĐÓNG RÕ RÀNG')} title={t(lang,'incidents')} text={lang==='vi'?'CMO ghi nhận → GĐTT phê duyệt → notify các bên → gửi GV trong tối đa 12h → follow-up → đóng bằng evidence.':'CMO logs → Centre Director approves → stakeholders are notified → teacher receives the approved record within 12h → follow-up → evidence-based closure.'} actions={canLog&&<button className="btn primary" onClick={()=>setModal({type:'incident'})}>＋ {t(lang,'createIncident')}</button>}/>
     <div className="grid12" style={{marginBottom:13}}><RiskRule tone="stable" title="Stable" rule="0–1 / week" text={lang==='vi'?'Theo dõi bình thường':'Routine monitoring'}/><RiskRule tone="watch" title="Watch" rule="2 / week or 3 / month" text={lang==='vi'?'Coaching + targeted observation':'Coaching + targeted observation'}/><RiskRule tone="danger" title="Danger" rule="≥3 / week or ≥4 / month" text={lang==='vi'?'Formal review + retraining':'Formal review + retraining'}/><RiskRule tone="critical" title="Critical" rule="Any critical breach" text={lang==='vi'?'Escalate immediately':'Immediate escalation'}/></div>
@@ -359,7 +532,7 @@ export default function HubClient({profile}){
     if(['ptns','rnd','bod'].includes(profile.role))allowed.push('announcements')
     if(!allowed.length)return <Empty lang={lang}/>
     const cards={
-      users:{title:t(lang,'importUsers'),icon:'01',text:bi(lang,'Create or update many staff accounts from one spreadsheet.','Tạo hoặc cập nhật nhiều tài khoản nhân sự từ một bảng dữ liệu.'),columns:'full_name · email · temporary_password · role · teacher_code · centre · region · level · language'},
+      users:{title:t(lang,'importUsers'),icon:'01',text:bi(lang,'Create or update many staff accounts from one spreadsheet.','Tạo hoặc cập nhật nhiều tài khoản nhân sự từ một bảng dữ liệu.'),columns:'full_name · email · temporary_password · role · staff_code · job_title · teacher_code · centre · region · level · language'},
       observations:{title:t(lang,'importObservations'),icon:'02',text:bi(lang,'Bring historical observation scores into each teacher portfolio and trend view.','Đưa điểm dự giờ trước đây vào hồ sơ và xu hướng phát triển của từng giáo viên.'),columns:'teacher_code/email · observed_at · final_score · strengths · improvement_areas · rating_1…rating_15 (optional)'},
       trainings:{title:t(lang,'importTrainings'),icon:'03',text:bi(lang,'Import training schedules, audiences, locations and recaps in bulk.','Nhập hàng loạt lịch đào tạo, đối tượng, địa điểm và recap.'),columns:'title · training_type · starts_at · ends_at · location · audience · region · centre · description'},
       announcements:{title:t(lang,'importAnnouncements'),icon:'04',text:bi(lang,'Publish multiple internal updates with EN/VI content from one file.','Đăng nhiều thông báo nội bộ song ngữ EN/VI từ một file.'),columns:'title_en · title_vi · body_en · body_vi · audience · region · centre · published_at'}
@@ -369,7 +542,23 @@ export default function HubClient({profile}){
 
   function Access(){
     if(!canAdmin)return <Empty lang={lang}/>
-    return <><PageIntro kicker={bi(lang,'TEAM ONBOARDING & ACCESS','TÀI KHOẢN & QUYỀN TRUY CẬP')} title={t(lang,'access')} text={t(lang,'userAdminSub')}/><div className="onboarding-grid"><button className="onboarding-card" onClick={()=>setModal({type:'user'})}><span className="onboarding-icon">＋</span><span><b>{t(lang,'createUser')}</b><small>{bi(lang,'Best for one new staff member or a quick access update.','Phù hợp khi tạo một nhân sự mới hoặc cập nhật nhanh quyền truy cập.')}</small></span><i>→</i></button><button className="onboarding-card featured" onClick={()=>setView('imports')}><span className="onboarding-icon">⇩</span><span><b>{t(lang,'bulkImport')}</b><small>{bi(lang,'Create or update a whole teacher list from CSV or Excel.','Tạo hoặc cập nhật cả danh sách giáo viên từ CSV hoặc Excel.')}</small></span><i>→</i></button></div><div className="panel"><div className="table-wrap"><div className="table"><div className="tr th access-cols"><span>{bi(lang,'User','Người dùng')}</span><span>{t(lang,'role')}</span><span>{t(lang,'centre')}</span><span>{t(lang,'region')}</span><span>{t(lang,'status')}</span></div>{data.users.map(u=><div className="tr access-cols" key={u.id}><span className="teacher-cell"><span className="avatar">{initials(u.full_name)}</span><span><b>{u.full_name}</b><small>{u.email||u.teacher_code||u.id.slice(0,8)}</small></span></span><span><b>{ROLE_LABELS[u.role]?.[lang]||u.role}</b></span><span><b>{u.home_centre_code||'—'}</b></span><span><b>{u.region_no||'—'}</b></span><span><span className={`pill ${u.is_active===false?'red':'green'}`}>{u.is_active===false?bi(lang,'Inactive','Ngưng hoạt động'):bi(lang,'Active','Đang hoạt động')}</span></span></div>)}</div></div></div></>
+    const userScope=u=>{
+      if(HEAD_OFFICE_ROLES.includes(u.role))return bi(lang,'Head Office · all regions','Hội sở · toàn hệ thống')
+      if(REGION_SCOPE_ROLES.includes(u.role))return `${bi(lang,'Region','Khu vực')} ${u.region_no||'—'}`
+      if(CENTRE_SCOPE_ROLES.includes(u.role))return `${u.home_centre_code||'—'} · ${bi(lang,'Region','Khu vực')} ${u.region_no||'—'}`
+      if(u.role==='teacher')return `${u.home_centre_code||'—'} · ${bi(lang,'Region','Khu vực')} ${u.region_no||'—'}`
+      return '—'
+    }
+    return <><PageIntro kicker={bi(lang,'TEAM ONBOARDING & ACCESS','TÀI KHOẢN & QUYỀN TRUY CẬP')} title={t(lang,'access')} text={t(lang,'userAdminSub')}/>
+      <div className="onboarding-grid">
+        <button className="onboarding-card" onClick={()=>setModal({type:'user'})}><span className="onboarding-icon">＋</span><span><b>{t(lang,'createUser')}</b><small>{bi(lang,'Role-aware form: Teacher → centre; Centre roles → centre; Regional Director → region; Head Office → no location assignment.','Form tự thay đổi theo vai trò: GV → trung tâm; quản lý TT → trung tâm; GĐ Khu vực → khu vực; Hội sở → không gán địa bàn.')}</small></span><i>→</i></button>
+        <button className="onboarding-card featured" onClick={()=>setView('imports')}><span className="onboarding-icon">⇩</span><span><b>{t(lang,'bulkImport')}</b><small>{bi(lang,'Create or update a whole centre, region or staff list from CSV / Excel.','Tạo hoặc cập nhật cả trung tâm, khu vực hay danh sách nhân sự từ CSV / Excel.')}</small></span><i>→</i></button>
+      </div>
+      <div className="panel"><div className="table-wrap"><div className="table">
+        <div className="tr th access-cols-v10"><span>{bi(lang,'User','Người dùng')}</span><span>{t(lang,'role')}</span><span>{bi(lang,'Staff code','Mã NS')}</span><span>{bi(lang,'Access scope','Phạm vi')}</span><span>{bi(lang,'Job title','Chức danh')}</span><span>{t(lang,'status')}</span></div>
+        {data.users.map(u=><div className="tr access-cols-v10" key={u.id}><span className="teacher-cell"><span className="avatar">{initials(u.full_name)}</span><span><b>{u.full_name}</b><small>{u.email||u.id.slice(0,8)}</small></span></span><span><b>{ROLE_LABELS[u.role]?.[lang]||u.role}</b></span><span><b>{u.staff_code||u.teacher_code||'—'}</b></span><span><b>{userScope(u)}</b></span><span><b>{u.job_title||'—'}</b></span><span><span className={`pill ${u.is_active===false?'red':'green'}`}>{u.is_active===false?bi(lang,'Inactive','Ngưng hoạt động'):bi(lang,'Active','Đang hoạt động')}</span></span></div>)}
+      </div></div></div>
+    </>
   }
 
   function Governance(){
@@ -515,6 +704,50 @@ function BrandFooter({lang}){
   </footer>
 }
 
+
+function StatTile({icon,label,value,suffix='',note,tone='blue'}){
+  return <article className={`stat-tile ${tone}`}><span className="stat-icon">{icon}</span><div><span className="stat-label">{label}</span><b>{value}<small>{suffix}</small></b><p>{note}</p></div></article>
+}
+function ScoreRing({value=0}){
+  const v=Math.max(0,Math.min(100,Number(value)||0))
+  return <div className="score-ring" style={{'--score':`${v*3.6}deg`}}><span>{v||'—'}</span></div>
+}
+function TrendChart({points=[],emptyText='No data'}){
+  if(!points.length)return <div className="trend-empty"><span>↗</span><p>{emptyText}</p></div>
+  const w=760,h=220,p=28
+  const vals=points.map(x=>Number(x.value)||0)
+  const min=Math.max(0,Math.min(...vals)-8),max=Math.min(100,Math.max(...vals)+8)
+  const span=Math.max(1,max-min)
+  const coords=points.map((x,i)=>{
+    const px=points.length===1?w/2:p+i*((w-p*2)/(points.length-1))
+    const py=h-p-((Number(x.value)-min)/span)*(h-p*2)
+    return {x:px,y:py,...x}
+  })
+  const poly=coords.map(x=>`${x.x},${x.y}`).join(' ')
+  const area=`${p},${h-p} ${poly} ${w-p},${h-p}`
+  return <div className="trend-chart"><svg viewBox={`0 0 ${w} ${h}`} role="img">
+    <defs><linearGradient id="vmgTrendFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="rgba(204,24,55,.26)"/><stop offset="100%" stopColor="rgba(204,24,55,0)"/></linearGradient></defs>
+    {[0,1,2,3].map(i=><line key={i} x1={p} x2={w-p} y1={p+i*((h-p*2)/3)} y2={p+i*((h-p*2)/3)} className="trend-grid-line"/>)}
+    <polygon points={area} fill="url(#vmgTrendFill)"/>
+    <polyline points={poly} className="trend-line"/>
+    {coords.map((c,i)=><g key={i}><circle cx={c.x} cy={c.y} r="5" className="trend-dot"/><text x={c.x} y={h-5} textAnchor="middle" className="trend-label">{c.label}</text><text x={c.x} y={Math.max(15,c.y-12)} textAnchor="middle" className="trend-value">{c.value}</text></g>)}
+  </svg></div>
+}
+function MiniBarList({items=[]}){
+  return <div className="mini-bar-list">{items.map((x,i)=><div className="mini-bar-row" key={`${x.label}-${i}`}><div><b>{x.label}</b><small>{x.meta}</small></div><div className="mini-bar-track"><i style={{width:`${Math.max(0,Math.min(100,x.value||0))}%`}}/></div><strong>{x.value||'—'}</strong></div>)}</div>
+}
+function DistributionBars({items=[],total=1}){
+  return <div className="distribution-bars">{items.map((x,i)=><div key={x.label}><span>{x.label}</span><div><i style={{width:`${Math.round(x.value/total*100)}%`}} className={`dist-${i}`}/></div><b>{x.value}</b></div>)}</div>
+}
+function TeacherAttentionCard({item,lang,onOpen}){
+  const {teacher,intel}=item
+  const tone=intel.risk.level==='Critical'||intel.risk.level==='Danger'?'red':intel.risk.level==='Watch'?'amber':'blue'
+  return <button className="attention-teacher" onClick={onOpen}><span className="avatar">{initials(teacher.full_name)}</span><span className="attention-person"><b>{teacher.full_name}</b><small>{teacher.home_centre_code||'VMG'} · {teacher.professional_level||bi(lang,'Level pending','Chưa có level')}</small></span><span className={`attention-signal ${tone}`}><b>{intel.score||'—'}</b><small>{intel.risk.level==='Stable'?bi(lang,'Support follow-up','Theo dõi hỗ trợ'):intel.risk.level}</small></span><span className="attention-next">{intel.recommendation}<i>→</i></span></button>
+}
+function CentreCompareRow({row,lang}){
+  return <div className="centre-compare-row"><span className="centre-name"><b>{row.centre}</b><small>{row.teachers} {bi(lang,'teachers','giáo viên')}</small></span><span><small>{bi(lang,'Observation','Dự giờ')}</small><b>{row.obs||'—'}</b></span><span><small>HVR</small><b>{row.hvr?`${row.hvr}%`:'—'}</b></span><span><small>{bi(lang,'Open cases','Sự vụ mở')}</small><b>{row.cases}</b></span><div className="centre-score-bar"><i style={{width:`${row.obs||0}%`}}/></div></div>
+}
+
 function Loading({lang}){return <div className="panel"><div className="empty">{t(lang,'loading')}</div></div>}
 function Empty({lang}){return <div className="empty">{t(lang,'noData')}</div>}
 function PageIntro({kicker,title,text,actions}){return <div className="page-intro"><div><span className="kicker">{kicker}</span><h2>{title}</h2><p>{text}</p></div>{actions}</div>}
@@ -525,7 +758,7 @@ function DocPill({v,lang}){const value=v||'Missing';return <span className={`pil
 function KpiWeight({label,value,lang='en'}){return <div className="risk-card stable" style={{gridColumn:'span 4'}}><div className="label">{bi(lang,'CONFIGURABLE WEIGHT','TRỌNG SỐ CÓ THỂ CẤU HÌNH')}</div><b>{value} · {label}</b><p>{bi(lang,'Requires R&D/BOD approval before official use.','Cần R&D/BOD phê duyệt trước khi áp dụng chính thức.')}</p></div>}
 
 const IMPORT_TEMPLATES={
-  users:{headers:['full_name','email','temporary_password','role','teacher_code','centre','region','level','language'],sample:['Nguyen Van A','teacher.a@vmg.edu.vn','VMG@2026demo','teacher','GV001','PVT','1','Level 2','en']},
+  users:{headers:['full_name','email','temporary_password','role','staff_code','job_title','teacher_code','centre','region','level','language'],sample:['Nguyen Van A','teacher.a@vmg.edu.vn','VMG@2026demo','teacher','NS001','Teacher','GV001','PVT','1','Level 2','en']},
   observations:{headers:['teacher_code','email','observed_at','observation_type','final_score','observer_name','class_name','strengths','improvement_areas','smart_action','verify_by','rating_1','rating_2','rating_3','rating_4','rating_5','rating_6','rating_7','rating_8','rating_9','rating_10','rating_11','rating_12','rating_13','rating_14','rating_15'],sample:['GV001','','2026-08-01 09:00','Full Observation','82.5','Academic Supervisor','EG B1-01','Strong rapport','Increase learner production','Use 2 structured pair-work cycles','2026-09-01','','','','','','','','','','','','','','','']},
   trainings:{headers:['title','training_type','starts_at','ends_at','location','audience','region','centre','reason','description','recap'],sample:['Classroom Management Lab','Classroom Management','2026-09-05 09:00','2026-09-05 11:00','VTS - Training Room','Region 1 teachers','1','','Development plan','Practical workshop on routines and participation','']},
   announcements:{headers:['title_en','title_vi','body_en','body_vi','audience','region','centre','published_at'],sample:['September teacher update','Cập nhật giáo viên tháng 9','Please review the September development calendar.','Vui lòng xem lịch phát triển tháng 9.','All teachers','','','2026-09-01 08:00']}
@@ -554,7 +787,66 @@ function KpiForm({teachers,lang,onSave}){const first=new Date();const start=new 
 
 function BulletinForm({lang,onSave}){const [f,setF]=useState({title_en:'',title_vi:'',body_en:'',body_vi:'',audience:'All teachers'});return <form onSubmit={e=>{e.preventDefault();onSave(f)}}><div className="form-grid two"><Field label={bi(lang,'English title','Tiêu đề tiếng Anh')}><input required value={f.title_en} onChange={e=>setF({...f,title_en:e.target.value})}/></Field><Field label={bi(lang,'Vietnamese title','Tiêu đề tiếng Việt')}><input value={f.title_vi} onChange={e=>setF({...f,title_vi:e.target.value})}/></Field><Field label={bi(lang,'English content','Nội dung tiếng Anh')}><textarea required value={f.body_en} onChange={e=>setF({...f,body_en:e.target.value})}/></Field><Field label={bi(lang,'Vietnamese content','Nội dung tiếng Việt')}><textarea value={f.body_vi} onChange={e=>setF({...f,body_vi:e.target.value})}/></Field><Field label={bi(lang,'Audience','Đối tượng')}><input value={f.audience} onChange={e=>setF({...f,audience:e.target.value})}/></Field></div><FormActions lang={lang}/></form>}
 
-function UserForm({lang,onSave}){const [f,setF]=useState({email:'',password:'',full_name:'',role:'teacher',teacher_code:'',home_centre_code:'PVT',region_no:1,professional_level:'',language_preference:'en'});return <form onSubmit={e=>{e.preventDefault();onSave({...f,region_no:Number(f.region_no)})}}><div className="form-grid two"><Field label={t(lang,'fullName')}><input required value={f.full_name} onChange={e=>setF({...f,full_name:e.target.value})}/></Field><Field label={t(lang,'email')}><input required type="email" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/></Field><Field label={t(lang,'temporaryPassword')}><div className="password-field"><input required type="text" minLength="8" value={f.password} onChange={e=>setF({...f,password:e.target.value})}/><button type="button" onClick={()=>setF({...f,password:`VMG!${Math.random().toString(36).slice(2,8)}${Math.floor(10+Math.random()*89)}`})}>{bi(lang,'Generate','Tạo nhanh')}</button></div></Field><Field label={t(lang,'role')}><select value={f.role} onChange={e=>setF({...f,role:e.target.value})}>{Object.entries(ROLE_LABELS).map(([k,v])=><option key={k} value={k}>{v[lang]||v.en}</option>)}</select></Field><Field label={t(lang,'teacherCode')}><input value={f.teacher_code} onChange={e=>setF({...f,teacher_code:e.target.value})}/></Field><Field label={t(lang,'level')}><input value={f.professional_level} onChange={e=>setF({...f,professional_level:e.target.value})}/></Field><Field label={t(lang,'region')}><select value={f.region_no} onChange={e=>{const r=Number(e.target.value);setF({...f,region_no:r,home_centre_code:REGION_CENTRES[r][0]})}}>{[1,2,3].map(r=><option key={r} value={r}>{bi(lang,'Region','Khu vực')} {r}</option>)}</select></Field><Field label={t(lang,'centre')}><select value={f.home_centre_code} onChange={e=>setF({...f,home_centre_code:e.target.value})}>{REGION_CENTRES[f.region_no].map(c=><option key={c}>{c}</option>)}</select></Field><Field label={t(lang,'language')}><select value={f.language_preference} onChange={e=>setF({...f,language_preference:e.target.value})}><option value="en">English</option><option value="vi">Tiếng Việt</option></select></Field></div><div className="friendly-note" style={{margin:'13px 0 0'}}><b>{bi(lang,'Tip','Gợi ý')}</b><p>{bi(lang,'For a whole centre or teacher cohort, use Bulk Import instead of creating accounts one by one.','Nếu tạo tài khoản cho cả trung tâm hoặc một nhóm giáo viên, hãy dùng Nhập hàng loạt thay vì tạo từng tài khoản.')}</p></div><FormActions lang={lang}/></form>}
+function UserForm({lang,onSave}){
+  const initial={email:'',password:'',full_name:'',role:'teacher',staff_code:'',job_title:'',teacher_code:'',home_centre_code:'PVT',region_no:1,professional_level:'',language_preference:'en'}
+  const [f,setF]=useState(initial)
+  const teacher=f.role==='teacher'
+  const centreScoped=CENTRE_SCOPE_ROLES.includes(f.role)
+  const regionScoped=REGION_SCOPE_ROLES.includes(f.role)
+  const headOffice=HEAD_OFFICE_ROLES.includes(f.role)
+  const scopeLabel=headOffice
+    ? bi(lang,'Head Office · all regions / centres','Hội sở · toàn bộ khu vực / trung tâm')
+    : regionScoped
+      ? `${bi(lang,'Region','Khu vực')} ${f.region_no||'—'}`
+      : centreScoped
+        ? `${f.home_centre_code||'—'} · ${bi(lang,'Region','Khu vực')} ${f.region_no||'—'}`
+        : `${f.home_centre_code||'—'} · ${bi(lang,'Region','Khu vực')} ${f.region_no||'—'}`
+  function setRole(role){
+    if(HEAD_OFFICE_ROLES.includes(role))setF({...f,role,region_no:'',home_centre_code:'',teacher_code:'',professional_level:''})
+    else if(REGION_SCOPE_ROLES.includes(role))setF({...f,role,region_no:1,home_centre_code:'',teacher_code:'',professional_level:''})
+    else setF({...f,role,region_no:1,home_centre_code:'PVT',teacher_code:role==='teacher'?f.teacher_code:'',professional_level:role==='teacher'?f.professional_level:''})
+  }
+  function setCentre(c){const region=Number(Object.entries(REGION_CENTRES).find(([,xs])=>xs.includes(c))?.[0]||1);setF({...f,home_centre_code:c,region_no:region})}
+  function submit(e){
+    e.preventDefault()
+    const payload={...f,region_no:f.region_no?Number(f.region_no):null,home_centre_code:f.home_centre_code||null,teacher_code:teacher?(f.teacher_code||null):null,professional_level:teacher?(f.professional_level||null):null}
+    onSave(payload)
+  }
+  return <form onSubmit={submit}>
+    <div className="account-scope-banner"><div><span>{bi(lang,'ACCESS DESIGN','THIẾT KẾ PHẠM VI')}</span><b>{scopeLabel}</b><p>{teacher?bi(lang,'Teacher sees only their own portfolio and assigned learning space.','Giáo viên chỉ xem hồ sơ của mình và không gian học tập được phân công.'):centreScoped?bi(lang,'Centre leadership sees teachers, performance and cases for the assigned centre only.','Quản lý trung tâm xem giáo viên, hiệu suất và sự vụ của trung tâm được phân công.'):regionScoped?bi(lang,'Regional leadership sees all centres in the assigned region; no centre assignment is required.','Giám đốc Khu vực xem toàn bộ trung tâm trong khu vực được phân công; không cần chọn trung tâm.'):bi(lang,'Head Office roles work across the system; region and centre are intentionally not assigned.','Vai trò Hội sở làm việc trên toàn hệ thống; không cần gán khu vực hay trung tâm.')}</p></div><span className="scope-badge">{teacher?'SELF':centreScoped?'CENTRE':regionScoped?'REGION':'HO'}</span></div>
+    <div className="form-section-title">{bi(lang,'Account identity','Thông tin tài khoản')}</div>
+    <div className="form-grid two">
+      <Field label={t(lang,'fullName')}><input required value={f.full_name} onChange={e=>setF({...f,full_name:e.target.value})}/></Field>
+      <Field label={t(lang,'email')}><input required type="email" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/></Field>
+      <Field label={t(lang,'temporaryPassword')}><div className="password-field"><input required type="text" minLength="8" value={f.password} onChange={e=>setF({...f,password:e.target.value})}/><button type="button" onClick={()=>setF({...f,password:`VMG!${Math.random().toString(36).slice(2,8)}${Math.floor(10+Math.random()*89)}`})}>{bi(lang,'Generate','Tạo nhanh')}</button></div></Field>
+      <Field label={t(lang,'role')}><select value={f.role} onChange={e=>setRole(e.target.value)}>{Object.entries(ROLE_LABELS).map(([k,v])=><option key={k} value={k}>{v[lang]||v.en}</option>)}</select></Field>
+      <Field label={bi(lang,'Staff / employee code','Mã nhân sự')}><input value={f.staff_code} onChange={e=>setF({...f,staff_code:e.target.value})} placeholder={bi(lang,'Optional internal ID','Mã nội bộ nếu có')}/></Field>
+      <Field label={bi(lang,'Job title','Chức danh')}><input value={f.job_title} onChange={e=>setF({...f,job_title:e.target.value})} placeholder={ROLE_LABELS[f.role]?.[lang]||''}/></Field>
+      <Field label={t(lang,'language')}><select value={f.language_preference} onChange={e=>setF({...f,language_preference:e.target.value})}><option value="en">English</option><option value="vi">Tiếng Việt</option></select></Field>
+    </div>
+
+    {teacher&&<><div className="form-section-title">{bi(lang,'Teacher profile','Hồ sơ giáo viên')}</div><div className="form-grid two">
+      <Field label={t(lang,'teacherCode')}><input required value={f.teacher_code} onChange={e=>setF({...f,teacher_code:e.target.value})}/></Field>
+      <Field label={t(lang,'level')}><input value={f.professional_level} onChange={e=>setF({...f,professional_level:e.target.value})} placeholder={bi(lang,'e.g. Level 2 / Senior','VD: Level 2 / Senior')}/></Field>
+      <Field label={t(lang,'region')}><select value={f.region_no} onChange={e=>{const r=Number(e.target.value);setF({...f,region_no:r,home_centre_code:REGION_CENTRES[r][0]})}}>{[1,2,3].map(r=><option key={r} value={r}>{bi(lang,'Region','Khu vực')} {r}</option>)}</select></Field>
+      <Field label={t(lang,'centre')}><select value={f.home_centre_code} onChange={e=>setCentre(e.target.value)}>{REGION_CENTRES[f.region_no||1].map(c=><option key={c}>{c}</option>)}</select></Field>
+    </div></>}
+
+    {centreScoped&&<><div className="form-section-title">{bi(lang,'Centre scope','Phạm vi trung tâm')}</div><div className="form-grid two">
+      <Field label={t(lang,'centre')}><select required value={f.home_centre_code} onChange={e=>setCentre(e.target.value)}>{Object.values(REGION_CENTRES).flat().map(c=><option key={c}>{c}</option>)}</select></Field>
+      <Field label={t(lang,'region')}><input readOnly value={`${bi(lang,'Region','Khu vực')} ${f.region_no||'—'}`}/></Field>
+    </div></>}
+
+    {regionScoped&&<><div className="form-section-title">{bi(lang,'Regional scope','Phạm vi khu vực')}</div><div className="form-grid two">
+      <Field label={t(lang,'region')}><select required value={f.region_no} onChange={e=>setF({...f,region_no:Number(e.target.value),home_centre_code:''})}>{[1,2,3].map(r=><option key={r} value={r}>{bi(lang,'Region','Khu vực')} {r}</option>)}</select></Field>
+      <Field label={bi(lang,'Centre assignment','Gán trung tâm')}><input readOnly value={bi(lang,'Not required for Regional Director','Không áp dụng cho Giám đốc Khu vực')}/></Field>
+    </div></>}
+
+    {headOffice&&<div className="friendly-note" style={{margin:'14px 0 0'}}><b>{bi(lang,'Head Office scope','Phạm vi Hội sở')}</b><p>{bi(lang,'This role is intentionally created without region or centre. Dashboard filters provide Region 1–3 and centre comparisons when needed.','Vai trò này được tạo không gán khu vực hoặc trung tâm. Khi cần phân tích, dashboard có bộ lọc Khu vực 1–3 và trung tâm.')}</p></div>}
+    <div className="friendly-note" style={{margin:'13px 0 0'}}><b>{bi(lang,'Bulk onboarding','Tạo tài khoản hàng loạt')}</b><p>{bi(lang,'For a whole centre, region or teacher cohort, use CSV / Excel import. The same role-based scope rules are applied automatically.','Khi tạo cả trung tâm, khu vực hoặc nhóm giáo viên, hãy dùng CSV / Excel. Hệ thống tự áp dụng cùng quy tắc phạm vi theo vai trò.')}</p></div>
+    <FormActions lang={lang}/>
+  </form>
+}
 
 function TouchpointForm({teachers,defaultTeacher,lang,onSave}){const [f,setF]=useState({teacher_id:defaultTeacher?.id||teachers[0]?.id||'',touch_date:nowDate(),touch_type:'Feedback / coaching',notes:''});const types=['Observation','Feedback / coaching','Catch-up meeting','Retraining follow-up','Performance conversation'];return <form onSubmit={e=>{e.preventDefault();onSave(f)}}><div className="form-grid two"><Field label={bi(lang,'Teacher','Giáo viên')}><select value={f.teacher_id} onChange={e=>setF({...f,teacher_id:e.target.value})}>{teachers.map(x=><option key={x.id} value={x.id}>{x.full_name}</option>)}</select></Field><Field label={bi(lang,'Date','Ngày')}><input type="date" value={f.touch_date} onChange={e=>setF({...f,touch_date:e.target.value})}/></Field><Field label={bi(lang,'Check-in type','Loại theo dõi')}><select value={f.touch_type} onChange={e=>setF({...f,touch_type:e.target.value})}>{types.map(x=><option key={x} value={x}>{dv(lang,x)}</option>)}</select></Field></div><div style={{marginTop:12}}><Field label={bi(lang,'Notes / evidence','Ghi chú / bằng chứng')}><textarea value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/></Field></div><FormActions lang={lang}/></form>}
 

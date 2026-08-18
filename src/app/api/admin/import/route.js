@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createAdminClient, adminErrorMessage } from '@/lib/supabase/admin'
-import { OBSERVATION_RUBRIC, REGION_CENTRES } from '@/lib/config'
+import { OBSERVATION_RUBRIC, REGION_CENTRES, HEAD_OFFICE_ROLES, REGION_SCOPE_ROLES, CENTRE_SCOPE_ROLES } from '@/lib/config'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -17,6 +17,7 @@ const ROLE_ALIASES={
   teacher:'teacher',gv:'teacher','giáo viên':'teacher',
   cmo:'cmo',qltt:'cmo','centre management officer':'cmo',
   centre_director:'centre_director','centre director':'centre_director',gdtt:'centre_director','gđtt':'centre_director','giám đốc trung tâm':'centre_director',
+  regional_director:'regional_director','regional director':'regional_director',gdkv:'regional_director','gđkv':'regional_director','giám đốc khu vực':'regional_director',
   csr:'csr','p. csr':'csr',rnd:'rnd','r&d':'rnd',bod:'bod',
   academic_supervisor:'academic_supervisor','academic supervisor':'academic_supervisor',as:'academic_supervisor',
   ptns:'ptns','p. ptns':'ptns','hr development':'ptns'
@@ -34,6 +35,8 @@ function normaliseKeys(row){
     mail:'email','email công việc':'email','work email':'email',
     password:'temporary_password','temporary password':'temporary_password','mật khẩu tạm':'temporary_password',
     teachercode:'teacher_code','teacher code':'teacher_code','mã giáo viên':'teacher_code','ma giao vien':'teacher_code',
+    staffcode:'staff_code','staff code':'staff_code','employee code':'staff_code','mã nhân sự':'staff_code','ma nhan su':'staff_code',
+    jobtitle:'job_title','job title':'job_title','chức danh':'job_title','chuc danh':'job_title',
     centre:'centre','center':'centre','trung tâm':'centre','trung tam':'centre','home_centre_code':'centre',
     region_no:'region','khu vực':'region','khu vuc':'region',professional_level:'level','professional level':'level',
     language_preference:'language','ngôn ngữ':'language','ngon ngu':'language',
@@ -130,12 +133,25 @@ export async function POST(request){
       const authRes=await admin.auth.admin.listUsers({page:1,perPage:1000})
       const authByEmail=new Map((authRes.data?.users||[]).filter(x=>x.email).map(x=>[lower(x.email),x]))
       for(let i=0;i<rows.length;i++){
-        const r=rows[i],row=i+2,email=lower(r.email),name=clean(r.full_name),role=normaliseRole(r.role||'teacher'),centre=clean(r.centre).toUpperCase()
-        const region=n(r.region)||CENTRE_REGION[centre]||null
+        const r=rows[i],row=i+2,email=lower(r.email),name=clean(r.full_name),role=normaliseRole(r.role||'teacher')
+        let centre=clean(r.centre).toUpperCase(),region=n(r.region)||null
         if(!email||!name){pushError(summary,row,msg('full_name and email are required','Cần có họ tên và email.'));continue}
-        if(!IMPORT_PERMISSIONS.users||!Object.values(ROLE_ALIASES).includes(role)){pushError(summary,row,msg(`Unknown role: ${r.role}`,`Vai trò không hợp lệ: ${r.role}`));continue}
-        if(centre&&!CENTRE_REGION[centre]){pushError(summary,row,msg(`Unknown centre: ${centre}`,`Mã trung tâm không hợp lệ: ${centre}`));continue}
-        if(region&&![1,2,3].includes(Number(region))){pushError(summary,row,msg(`Invalid region: ${region}`,`Khu vực không hợp lệ: ${region}`));continue}
+        if(!Object.values(ROLE_ALIASES).includes(role)){pushError(summary,row,msg(`Unknown role: ${r.role}`,`Vai trò không hợp lệ: ${r.role}`));continue}
+
+        if(role==='teacher'){
+          if(!clean(r.teacher_code)){pushError(summary,row,msg('teacher_code is required for Teacher accounts','Tài khoản Giáo viên cần có mã giáo viên.'));continue}
+          if(!centre||!CENTRE_REGION[centre]){pushError(summary,row,msg(`A valid centre is required for Teacher accounts: ${centre||'blank'}`,`Tài khoản Giáo viên cần trung tâm hợp lệ: ${centre||'để trống'}`));continue}
+          region=CENTRE_REGION[centre]
+        }else if(CENTRE_SCOPE_ROLES.includes(role)){
+          if(!centre||!CENTRE_REGION[centre]){pushError(summary,row,msg(`A valid centre is required for Centre roles: ${centre||'blank'}`,`Vai trò quản lý Trung tâm cần trung tâm hợp lệ: ${centre||'để trống'}`));continue}
+          region=CENTRE_REGION[centre]
+        }else if(REGION_SCOPE_ROLES.includes(role)){
+          if(![1,2,3].includes(Number(region))){pushError(summary,row,msg('Region 1, 2 or 3 is required for Regional Director','Giám đốc Khu vực cần chọn Khu vực 1, 2 hoặc 3.'));continue}
+          centre=''
+        }else if(HEAD_OFFICE_ROLES.includes(role)){
+          centre='';region=null
+        }
+
         let authUser=authByEmail.get(email)
         if(!authUser){
           const password=clean(r.temporary_password)
@@ -144,11 +160,18 @@ export async function POST(request){
           if(error){pushError(summary,row,error.message);continue}
           authUser=created.user;authByEmail.set(email,authUser);summary.created++
         }else summary.updated++
+
         const {error}=await admin.from('profiles').upsert({
           id:authUser.id,email,full_name:name,role,
-          teacher_code:clean(r.teacher_code)||null,
-          home_centre_code:centre||null,region_no:region?Number(region):null,
-          professional_level:clean(r.level)||null,language_preference:lower(r.language)==='vi'?'vi':'en',is_active:r.is_active===''||r.is_active==null?true:bool(r.is_active),updated_at:new Date().toISOString()
+          staff_code:clean(r.staff_code)||null,
+          job_title:clean(r.job_title)||null,
+          teacher_code:role==='teacher'?(clean(r.teacher_code)||null):null,
+          home_centre_code:centre||null,
+          region_no:region?Number(region):null,
+          professional_level:role==='teacher'?(clean(r.level)||null):null,
+          language_preference:lower(r.language)==='vi'?'vi':'en',
+          is_active:r.is_active===''||r.is_active==null?true:bool(r.is_active),
+          updated_at:new Date().toISOString()
         })
         if(error){pushError(summary,row,error.message);continue}
         byEmail.set(email,{id:authUser.id,email})

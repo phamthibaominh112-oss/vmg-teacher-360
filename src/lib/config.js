@@ -2,6 +2,7 @@ export const ROLE_LABELS = {
   teacher: { en: 'Teacher', vi: 'Giáo viên' },
   cmo: { en: 'Centre Management Officer', vi: 'Quản lý Trung tâm (CMO / QLTT)' },
   centre_director: { en: 'Centre Director', vi: 'Giám đốc Trung tâm' },
+  regional_director: { en: 'Regional Director', vi: 'Giám đốc Khu vực' },
   csr: { en: 'CSR Department', vi: 'Phòng CSR' },
   rnd: { en: 'R&D', vi: 'R&D' },
   bod: { en: 'Board of Directors', vi: 'BOD' },
@@ -9,7 +10,10 @@ export const ROLE_LABELS = {
   ptns: { en: 'HR Development', vi: 'Phát triển Nhân sự (PTNS)' }
 }
 
-export const GLOBAL_VIEW_ROLES = ['csr','rnd','bod','academic_supervisor','ptns']
+export const HEAD_OFFICE_ROLES = ['csr','rnd','bod','academic_supervisor','ptns']
+export const GLOBAL_VIEW_ROLES = HEAD_OFFICE_ROLES
+export const REGION_SCOPE_ROLES = ['regional_director']
+export const CENTRE_SCOPE_ROLES = ['cmo','centre_director']
 export const DELETE_ROLES = ['rnd','bod']
 export const USER_ADMIN_ROLES = ['rnd','bod']
 
