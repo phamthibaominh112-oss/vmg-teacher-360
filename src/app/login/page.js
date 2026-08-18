@@ -36,15 +36,15 @@ export default function LoginPage(){
       <img className="brand-logo" src="/vmg-logo.png" alt="VMG English" />
       <div className="brand-copy">
         <span className="kicker">VMG Teacher 360</span>
-        <h1>{lang==='vi'?'Một hồ sơ. Toàn bộ hành trình phát triển giáo viên.':'One record. The complete teacher development journey.'}</h1>
-        <p>{lang==='vi'?'Kết nối hiệu suất, dự giờ, đào tạo, sự vụ, hồ sơ và quy hoạch nhân sự trên cùng một hệ thống minh bạch.':'Connect performance, observations, development, incidents, records and workforce planning in one transparent system.'}</p>
+        <h1>{lang==='vi'?'Mỗi ngày làm nghề nhẹ hơn. Mỗi bước phát triển rõ hơn.':'A better workday. A clearer growth journey.'}</h1>
+        <p>{lang==='vi'?'Tất cả phản hồi, học liệu, đào tạo, lịch phát triển và thành tựu nghề nghiệp của giáo viên được kết nối tại một nơi.':'Bring feedback, resources, training, development plans and career progress together in one supportive workspace.'}</p>
         <div className="brand-principles">
-          <div><b>{lang==='vi'?'Minh bạch':'Transparent'}</b><span>{lang==='vi'?'Evidence trước judgement':'Evidence before judgement'}</span></div>
-          <div><b>{lang==='vi'?'Phát triển':'Development'}</b><span>{lang==='vi'?'Coach → train → verify':'Coach → train → verify'}</span></div>
-          <div><b>{lang==='vi'?'Có kiểm soát':'Governed'}</b><span>{lang==='vi'?'Role-based access & audit trail':'Role-based access & audit trail'}</span></div>
+          <div><b>{lang==='vi'?'Rõ ràng':'Clarity'}</b><span>{lang==='vi'?'Phản hồi có bằng chứng':'Evidence-led feedback'}</span></div>
+          <div><b>{lang==='vi'?'Phát triển':'Growth'}</b><span>{lang==='vi'?'Học → thực hành → tiến bộ':'Learn → practise → progress'}</span></div>
+          <div><b>{lang==='vi'?'Đúng người':'Right access'}</b><span>{lang==='vi'?'Mỗi vai trò thấy đúng việc cần làm':'Each role sees what matters'}</span></div>
         </div>
       </div>
-      <div className="login-copyfoot">VMG INTERNAL SYSTEM · AUTHORISED ACCESS ONLY</div>
+      <div className="login-copyfoot">VMG TEACHER 360 · GROW · CONNECT · EXCEL</div>
     </section>
 
     <section className="login-panel">
