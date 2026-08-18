@@ -300,3 +300,130 @@ body{font-size:15px;line-height:1.55;background:linear-gradient(180deg,#fbfaf8 0
   .partner-logo-grid{grid-template-columns:1fr}.brand-footer-proof{grid-template-columns:1fr}.brand-footer-proof>div{border-right:0!important;border-bottom:1px solid rgba(255,255,255,.08)}
   .bulletin-stamps{display:none}
 }
+
+/* =========================================================
+   V8 · COMPACT ACADEMIC BALANCE
+   Keep the academic energy, remove footer overload, tighten library entry.
+   ========================================================= */
+
+/* The footer is a trust strip, not a second hero section. It stays at the
+   bottom of short pages through the existing flex layout, but never sticks
+   over content while the user scrolls. */
+.content{padding-bottom:30px}
+.brand-footer{
+  margin:0 32px 18px;
+  border-radius:20px;
+  box-shadow:0 12px 32px rgba(13,25,45,.11);
+}
+.brand-footer-hero{
+  min-height:62px;
+  padding:14px 22px;
+  gap:20px;
+  background:radial-gradient(circle at 84% 15%,rgba(201,25,51,.16),transparent 20%),linear-gradient(118deg,#101a2d 0%,#18304d 68%,#2d2030 100%);
+}
+.footer-wordmark{gap:12px}
+.footer-wordmark img{width:54px}
+.footer-wordmark>div>span{font-size:8px;letter-spacing:1.1px}
+.footer-wordmark b{font-size:14px}
+.footer-wordmark p{display:none}
+.footer-years{
+  min-width:112px;
+  grid-template-columns:auto auto;
+  column-gap:7px;
+  align-items:end;
+  justify-content:end;
+  text-align:left;
+  padding-left:18px;
+}
+.footer-years strong{font-size:34px}
+.footer-years span{font-size:8px;margin:0 0 2px}
+.footer-years small{grid-column:1/-1;font-size:7.5px;margin-top:0;text-align:right}
+
+.footer-academic-ecosystem{
+  padding:10px 16px;
+  grid-template-columns:180px 1fr;
+  gap:13px;
+  background:#f8f9fb;
+}
+.footer-ecosystem-copy{gap:1px}
+.footer-ecosystem-copy span{font-size:7.5px;letter-spacing:.95px}
+.footer-ecosystem-copy b{font-size:10px;white-space:nowrap}
+.partner-logo-grid{gap:7px}
+.partner-logo-card{
+  min-height:52px;
+  border-radius:11px;
+  padding:5px 8px;
+  grid-template-rows:1fr auto;
+}
+.partner-logo-card img{max-width:92px;max-height:30px}
+.partner-logo-card small{font-size:6.5px;margin-top:2px;line-height:1.15}
+.dark-logo-card img{width:54px;height:31px;border-radius:5px}
+.cambridge-logo-card img{max-width:105px;max-height:29px}
+.ielts-official-word{font-size:21px;letter-spacing:-1px}
+.ielts-logo-card small{max-width:120px}
+
+.brand-footer-proof{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  background:#101a2d;
+}
+.brand-footer-proof>div{
+  min-height:50px;
+  padding:9px 15px;
+  grid-template-columns:auto 1fr;
+  column-gap:8px;
+  align-items:center;
+  align-content:center;
+}
+.brand-footer-proof strong{font-size:17px;grid-row:1/3}
+.brand-footer-proof span{font-size:7px;letter-spacing:.6px;margin-top:0}
+.brand-footer-proof small{font-size:6.8px;margin-top:0;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand-footer-bottom{padding:7px 20px 8px;font-size:6.8px}
+
+/* The resource library should start sooner. The visual covers stay because
+   they are useful wayfinding, but the entry rhythm is tighter. */
+.page-intro{margin-bottom:13px}
+.resource-showcase{margin-top:-5px;margin-bottom:14px;gap:15px}
+.resource-visual{min-height:208px;padding:24px;border-radius:23px}
+.resource-visual h3{font-size:25px}
+.academic-cover-gallery{margin-bottom:15px;gap:11px}
+.academic-cover{min-height:170px;padding:18px 17px 17px 23px;border-radius:19px}
+.cover-copy h3{font-size:18px}
+.cover-copy p{font-size:9.5px}
+.resource-summary-grid{margin-bottom:12px}
+
+/* Reduce repetition on the dashboard: the footer carries trust marks, while
+   page content carries work. */
+.academic-ribbon{margin:14px 0 17px;gap:11px}
+.academic-badge{min-height:84px;padding:13px 15px;border-radius:17px}
+.academic-badge>span{width:47px;height:47px;border-radius:14px;font-size:10.5px}
+.academic-badge b{font-size:11.5px}.academic-badge small{font-size:8.8px}
+
+@media(max-width:1260px){
+  .footer-academic-ecosystem{grid-template-columns:150px 1fr}
+  .footer-ecosystem-copy b{white-space:normal}
+}
+@media(max-width:980px){
+  .brand-footer{margin:0 18px 16px}
+  .brand-footer-hero{align-items:center}
+  .footer-years{border-top:0;border-left:1px solid rgba(255,255,255,.12);padding:0 0 0 14px}
+  .footer-academic-ecosystem{grid-template-columns:1fr}
+  .footer-ecosystem-copy{display:none}
+  .partner-logo-grid{grid-template-columns:repeat(4,1fr)}
+  .brand-footer-proof>div{padding:8px 10px}
+}
+@media(max-width:760px){
+  .brand-footer-hero{display:flex;padding:13px 16px}
+  .footer-wordmark>div>span{display:none}
+  .footer-years{display:grid;grid-template-columns:auto auto;gap:4px;min-width:88px;padding-top:0}
+  .footer-years strong{font-size:28px}
+  .partner-logo-grid{grid-template-columns:1fr 1fr}
+  .brand-footer-proof{grid-template-columns:1fr 1fr}
+  .brand-footer-proof>div{min-height:46px}
+  .brand-footer-bottom span:last-child{display:none}
+  .resource-showcase{margin-top:-3px}
+}
+@media(max-width:520px){
+  .brand-footer-proof{grid-template-columns:1fr 1fr}
+  .brand-footer-proof>div{border-right:1px solid rgba(255,255,255,.08)!important;border-bottom:1px solid rgba(255,255,255,.08)}
+  .brand-footer-proof>div:nth-child(2n){border-right:0!important}
+}
