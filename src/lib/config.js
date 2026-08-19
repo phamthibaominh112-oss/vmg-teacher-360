@@ -67,3 +67,38 @@ export function incidentRisk({weekly=0, monthly=0, critical=false}){
   if(weekly >= 2 || monthly >= 3) return {level:'Watch', tone:'watch', action:'Coaching plus targeted observation'}
   return {level:'Stable', tone:'stable', action:'Routine monitoring'}
 }
+
+
+// V16 · Monthly teacher KPI operating rubric (draft until BOD/R&D policy approval)
+export const KPI_REVENUE_TARGET = 30000000
+export const KPI_OPERATING_RUBRIC = [
+  { code:'A', min:90, en:'Strong', vi:'Mạnh' },
+  { code:'B', min:80, en:'Meets standard', vi:'Đạt chuẩn' },
+  { code:'C', min:70, en:'Needs improvement', vi:'Cần cải thiện' },
+  { code:'D', min:0, en:'Action required', vi:'Cần hành động' }
+]
+
+export function kpiBand(score){
+  const n=Number(score)
+  if(!Number.isFinite(n)) return {code:'—',en:'Insufficient data',vi:'Chưa đủ dữ liệu'}
+  return KPI_OPERATING_RUBRIC.find(x=>n>=x.min)||KPI_OPERATING_RUBRIC[KPI_OPERATING_RUBRIC.length-1]
+}
+
+export function retentionPct(startCount,dropoutCount){
+  const start=Number(startCount||0), drop=Number(dropoutCount||0)
+  if(start<=0) return null
+  return Number((Math.max(0,start-drop)/start*100).toFixed(1))
+}
+
+export function weightedKpiComposite({observation,hvr,revenueIndex,weightObservation=50,weightHvr=30,weightRevenue=20}){
+  const metrics=[
+    {raw:observation,weight:Number(weightObservation||0)},
+    {raw:hvr,weight:Number(weightHvr||0)},
+    {raw:revenueIndex,weight:Number(weightRevenue||0)}
+  ].filter(x=>x.raw!==null&&x.raw!==undefined&&x.raw!==''&&Number.isFinite(Number(x.raw))&&Number(x.raw)>=0&&x.weight>0).map(x=>({value:Number(x.raw),weight:x.weight}))
+  const denominator=metrics.reduce((a,x)=>a+x.weight,0)
+  if(!denominator)return {score:null,completeness:0}
+  const score=metrics.reduce((a,x)=>a+x.value*x.weight,0)/denominator
+  const total=Math.max(1,Number(weightObservation||0)+Number(weightHvr||0)+Number(weightRevenue||0))
+  return {score:Number(score.toFixed(1)),completeness:Number((denominator/total*100).toFixed(0))}
+}
