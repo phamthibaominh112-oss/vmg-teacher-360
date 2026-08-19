@@ -819,3 +819,23 @@ button,input,select,textarea{font-size:14px;line-height:1.45}
   .framework-status{white-space:normal;width:max-content;max-width:100%}
   .framework-visibility{padding:16px}
 }
+
+
+/* =========================================================
+   V16.2 · INLINE FULL EVALUATION MATRICES
+   Full rubric is visible directly inside management Performance,
+   not hidden behind a separate framework page.
+   ========================================================= */
+.management-framework-shell{margin:18px 0 20px;padding:18px;border:1px solid #d9e0e9;border-radius:22px;background:linear-gradient(180deg,#fbfcfe 0%,#f7f9fc 100%);box-shadow:0 14px 34px rgba(21,35,55,.055)}
+.management-framework-title{display:flex;align-items:flex-start;justify-content:space-between;gap:22px;margin-bottom:13px;padding:2px 2px 4px}
+.management-framework-title>div{max-width:980px}.management-framework-title span{font-size:10.5px;font-weight:900;letter-spacing:.45px;color:#a51d35}.management-framework-title h2{font-size:24px;line-height:1.28;margin:6px 0;color:#17243a}.management-framework-title p{font-size:12.5px;line-height:1.65;color:#667487;margin:0}
+.framework-logic-banner{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:0 0 14px}
+.framework-logic-banner span{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid #e1e6ed;font-size:10.8px;font-weight:800;color:#4e5d70}
+.framework-logic-banner b{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#f7e9ed;color:#b21d36;font-size:9px;flex:0 0 auto}
+.management-framework-shell .framework-section{box-shadow:none;margin-bottom:12px}
+.management-kpi-matrix{min-width:1320px}.management-kpi-matrix .framework-tr{grid-template-columns:48px 1.05fr 74px 1fr 1.45fr 1.35fr 1.2fr}
+.decision-framework-table{min-width:1080px}.decision-framework-table .framework-tr{grid-template-columns:1.08fr 1.4fr 1.55fr 1fr}
+.management-policy-note{margin-top:4px;background:#fff;border-color:#dce3eb}
+.issue-framework-card p b{display:inline;font-size:10.8px;color:#24344b}
+@media(max-width:1050px){.framework-logic-banner{grid-template-columns:1fr 1fr}.management-framework-title{display:grid}}
+@media(max-width:680px){.framework-logic-banner{grid-template-columns:1fr}.management-framework-shell{padding:12px}.management-framework-title h2{font-size:20px}}
