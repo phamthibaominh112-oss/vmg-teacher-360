@@ -6,18 +6,18 @@ import RESOURCE_CATALOG from '@/data/resources.json'
 import { ROLE_LABELS, DELETE_ROLES, USER_ADMIN_ROLES, REGION_CENTRES, HEAD_OFFICE_ROLES, REGION_SCOPE_ROLES, CENTRE_SCOPE_ROLES, INCIDENT_CATEGORIES, OBSERVATION_RUBRIC, scoreBand, incidentRisk, KPI_REVENUE_TARGET, kpiBand, retentionPct, weightedKpiComposite } from '@/lib/config'
 
 const NAV = {
-  teacher:['overview','portfolio','kpi','growth','observations','training','resources','bulletin','handbook','documents','support'],
-  cmo:['overview','teachers','performance','kpi','incidents','training','resources','touchpoints','upgrades','documents','support'],
-  centre_director:['overview','teachers','performance','kpi','incidents','training','resources','touchpoints','upgrades','documents','support'],
-  regional_director:['overview','teachers','performance','kpi','incidents','training','resources','touchpoints','upgrades','documents','support'],
-  csr:['overview','teachers','incidents','coordination','training','resources','touchpoints','performance','documents','support'],
-  rnd:['overview','teachers','performance','kpi','observations','training','touchpoints','upgrades','incidents','documents','support','resources','bulletin','access','imports','governance'],
-  bod:['overview','teachers','performance','kpi','observations','training','touchpoints','upgrades','incidents','documents','support','resources','bulletin','access','imports','governance'],
-  academic_supervisor:['overview','teachers','performance','kpi','observations','training','calendar','touchpoints','upgrades','documents','support','resources','imports'],
-  ptns:['overview','teachers','documents','training','bulletin','support','kpi','performance','touchpoints','resources','imports']
+  teacher:['overview','portfolio','kpi','framework','growth','observations','training','resources','bulletin','handbook','documents','support'],
+  cmo:['overview','teachers','performance','kpi','framework','incidents','training','resources','touchpoints','upgrades','documents','support'],
+  centre_director:['overview','teachers','performance','kpi','framework','incidents','training','resources','touchpoints','upgrades','documents','support'],
+  regional_director:['overview','teachers','performance','kpi','framework','incidents','training','resources','touchpoints','upgrades','documents','support'],
+  csr:['overview','teachers','incidents','coordination','training','resources','touchpoints','performance','framework','documents','support'],
+  rnd:['overview','teachers','performance','kpi','framework','observations','training','touchpoints','upgrades','incidents','documents','support','resources','bulletin','access','imports','governance'],
+  bod:['overview','teachers','performance','kpi','framework','observations','training','touchpoints','upgrades','incidents','documents','support','resources','bulletin','access','imports','governance'],
+  academic_supervisor:['overview','teachers','performance','kpi','framework','observations','training','calendar','touchpoints','upgrades','documents','support','resources','imports'],
+  ptns:['overview','teachers','documents','training','bulletin','support','kpi','framework','performance','touchpoints','resources','imports']
 }
-const GLYPHS={overview:'⌂',teachers:'◎',portfolio:'◉',growth:'▦',resources:'⌕',support:'?',bulletin:'▤',training:'△',calendar:'□',observations:'✓',incidents:'!',performance:'↗',touchpoints:'↻',upgrades:'↑',documents:'▱',kpi:'%',coordination:'⇄',access:'◇',governance:'◆',imports:'⇩',handbook:'§'}
-const LABEL_KEY={overview:'overview',teachers:'teachers',portfolio:'myPortfolio',growth:'growthMatrix',resources:'resources',support:'support',bulletin:'bulletin',training:'training',calendar:'calendar',observations:'observations',incidents:'incidents',performance:'performance',touchpoints:'touchpoints',upgrades:'upgrades',documents:'documents',kpi:'kpi',coordination:'coordination',access:'access',governance:'governance',imports:'imports',handbook:'handbook'}
+const GLYPHS={overview:'⌂',teachers:'◎',portfolio:'◉',framework:'≡',growth:'▦',resources:'⌕',support:'?',bulletin:'▤',training:'△',calendar:'□',observations:'✓',incidents:'!',performance:'↗',touchpoints:'↻',upgrades:'↑',documents:'▱',kpi:'%',coordination:'⇄',access:'◇',governance:'◆',imports:'⇩',handbook:'§'}
+const LABEL_KEY={overview:'overview',teachers:'teachers',portfolio:'myPortfolio',framework:'framework',growth:'growthMatrix',resources:'resources',support:'support',bulletin:'bulletin',training:'training',calendar:'calendar',observations:'observations',incidents:'incidents',performance:'performance',touchpoints:'touchpoints',upgrades:'upgrades',documents:'documents',kpi:'kpi',coordination:'coordination',access:'access',governance:'governance',imports:'imports',handbook:'handbook'}
 const nowDate=()=>new Date().toISOString().slice(0,10)
 const initials=n=>(n||'VMG').trim().split(/\s+/).slice(-2).map(x=>x[0]).join('').toUpperCase()
 const fmt=(d,lang='en')=>d?new Intl.DateTimeFormat(lang==='vi'?'vi-VN':'en-GB',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(d)):'—'
@@ -155,7 +155,7 @@ export default function HubClient({profile}){
   function navGroups(){
     const defs=[
       {key:'workspace',label:t(lang,'menuWorkspace'),items:['overview','portfolio','teachers']},
-      {key:'people',label:t(lang,'menuPeople'),items:['growth','performance','observations','training','calendar','touchpoints','upgrades']},
+      {key:'people',label:t(lang,'menuPeople'),items:['growth','performance','framework','observations','training','calendar','touchpoints','upgrades']},
       {key:'operations',label:t(lang,'menuOperations'),items:['incidents','coordination','handbook','documents','support','kpi']},
       {key:'tools',label:t(lang,'menuTools'),items:['resources','bulletin','access','imports','governance']}
     ]
@@ -163,7 +163,7 @@ export default function HubClient({profile}){
   }
 
   function renderView(){
-    const map={overview:<Overview/>,portfolio:<Portfolio/>,growth:<GrowthMatrix/>,resources:<Resources/>,support:<Support/>,teachers:<Teachers/>,bulletin:<Bulletin/>,training:<Training/>,calendar:<Calendar/>,observations:<Observations/>,incidents:<Incidents/>,performance:<Performance/>,touchpoints:<Touchpoints/>,upgrades:<Upgrades/>,documents:<Documents/>,kpi:<Kpi/>,coordination:<Coordination/>,access:<Access/>,imports:<Imports/>,governance:<Governance/>,handbook:<Handbook/>}
+    const map={overview:<Overview/>,portfolio:<Portfolio/>,growth:<GrowthMatrix/>,resources:<Resources/>,support:<Support/>,teachers:<Teachers/>,bulletin:<Bulletin/>,training:<Training/>,calendar:<Calendar/>,observations:<Observations/>,incidents:<Incidents/>,performance:<Performance/>,framework:<EvaluationFramework/>,touchpoints:<Touchpoints/>,upgrades:<Upgrades/>,documents:<Documents/>,kpi:<Kpi/>,coordination:<Coordination/>,access:<Access/>,imports:<Imports/>,governance:<Governance/>,handbook:<Handbook/>}
     return map[view]||map.overview
   }
 
@@ -593,7 +593,7 @@ export default function HubClient({profile}){
     const teachers=teacherMode?[currentUser]:data.teachers
     const rows=teachers.map(teacher=>({teacher,...monthlyKpiIntel(teacher,month)}))
     const canEditKpi=['cmo','centre_director','regional_director','ptns','rnd','bod'].includes(profile.role)
-    const actions=<div className="page-action-row"><input className="month-picker" type="month" value={month} onChange={e=>setMonth(e.target.value)}/>{canEditKpi&&<button className="btn secondary" onClick={()=>setModal({type:'kpi',month})}>＋ {bi(lang,'Record KPI','Ghi nhận KPI')}</button>}<button className="btn primary" onClick={()=>exportMonthlyKpi(month,teachers)}>⇩ {teacherMode?bi(lang,'Export my KPI','Xuất KPI của tôi'):bi(lang,'Export monthly KPI','Xuất KPI tháng')}</button></div>
+    const actions=<div className="page-action-row"><input className="month-picker" type="month" value={month} onChange={e=>setMonth(e.target.value)}/><button className="btn soft" onClick={()=>setView('framework')}>≡ {teacherMode?bi(lang,'How am I evaluated?','Tôi được đánh giá thế nào?'):bi(lang,'Evaluation framework','Khung đánh giá')}</button>{canEditKpi&&<button className="btn secondary" onClick={()=>setModal({type:'kpi',month})}>＋ {bi(lang,'Record KPI','Ghi nhận KPI')}</button>}<button className="btn primary" onClick={()=>exportMonthlyKpi(month,teachers)}>⇩ {teacherMode?bi(lang,'Export my KPI','Xuất KPI của tôi'):bi(lang,'Export monthly KPI','Xuất KPI tháng')}</button></div>
     const own=rows[0]
     return <><PageIntro kicker={bi(lang,'MONTHLY KPI · SOURCE · FORMULA · EVIDENCE','KPI THÁNG · NGUỒN · CÔNG THỨC · MINH CHỨNG')} title={teacherMode?bi(lang,'My monthly KPI','KPI tháng của tôi'):t(lang,'kpi')} text={teacherMode?bi(lang,'See exactly how your monthly KPI is built, how many learners dropped, how many approved issues were recorded and whether the data is complete.','Xem rõ KPI tháng được hình thành thế nào, có bao nhiêu HV rụng, bao nhiêu lỗi đã duyệt và dữ liệu đã đầy đủ đến đâu.'):bi(lang,'Record monthly learner base/dropouts, observation evidence and business contribution; Teacher 360 calculates HVR, KPI band and data completeness automatically.','Nhập số HV đầu kỳ/rụng, bằng chứng dự giờ và đóng góp kinh doanh; Teacher 360 tự tính HVR, xếp loại KPI và độ đầy đủ dữ liệu.')} actions={actions}/>
       {teacherMode&&own&&<div className="my-kpi-hero">
@@ -603,6 +603,155 @@ export default function HubClient({profile}){
       <div className="kpi-explain-strip"><div><b>{bi(lang,'HVR formula','Công thức HVR')}</b><span>{bi(lang,'(Learners at start − dropouts) ÷ learners at start × 100','(HV đầu kỳ − HV rụng) ÷ HV đầu kỳ × 100')}</span></div><div><b>{bi(lang,'KPI bands','Thang KPI')}</b><span>A ≥90 · B 80–89.9 · C 70–79.9 · D &lt;70</span></div><div><b>{bi(lang,'Issue rule today','Quy tắc lỗi hiện tại')}</b><span>{bi(lang,'Approved issues are visible but do not deduct KPI yet.','Lỗi đã duyệt được hiển thị nhưng hiện chưa trừ KPI.')}</span></div></div>
       {!teacherMode&&<div className="panel"><div className="table-wrap"><div className="table"><div className="tr th kpi-cols-v16"><span>{bi(lang,'Teacher','Giáo viên')}</span><span>{bi(lang,'Observation','Dự giờ')}</span><span>{bi(lang,'Learner base','HV đầu kỳ')}</span><span>{bi(lang,'Dropouts','HV rụng')}</span><span>HVR</span><span>{bi(lang,'Issues','Lỗi')}</span><span>KPI</span><span>{bi(lang,'Data','Dữ liệu')}</span></div>{rows.map(r=><div className="tr kpi-cols-v16" key={r.teacher.id}><span className="teacher-cell"><AvatarPic user={r.teacher}/><span><b>{r.teacher.full_name}</b><small>{r.teacher.home_centre_code||'—'} · {r.teacher.teacher_code||'—'}</small></span></span><span><b>{r.observation??'—'}</b></span><span><b>{r.learnerStart??'—'}</b></span><span><b>{r.dropouts??'—'}</b></span><span><b>{r.hvr!=null?`${r.hvr}%`:'—'}</b></span><span><b>{r.issues.approved}</b><small>{r.issues.pending} {bi(lang,'pending','chờ duyệt')}</small></span><span><KpiBandPill band={r.band} score={r.score} completeness={r.completeness} lang={lang}/></span><span><b>{r.completeness}%</b><small>{r.k?bi(lang,'Recorded','Đã chốt'):bi(lang,'Not recorded','Chưa chốt')}</small></span></div>)}{!rows.length&&<Empty lang={lang}/>}</div></div></div>}
       <div className="policy-off-banner"><b>{bi(lang,'No monetary penalty is being applied now.','Hiện tại chưa áp dụng phạt tiền.')}</b><span>{bi(lang,'The system keeps approved issue counts and a future penalty field so policy can be activated later with transparent historical evidence.','Hệ thống vẫn lưu số lỗi đã duyệt và trường mức phạt để sau này có thể kích hoạt chính sách với dữ liệu lịch sử minh bạch.')}</span></div>
+    </>
+  }
+
+
+  function EvaluationFramework(){
+    const teacherMode=profile.role==='teacher'
+    const kpiRows=[
+      {
+        no:'01',dimension:bi(lang,'Teaching quality','Chất lượng giảng dạy'),metric:bi(lang,'Official Observation score','Điểm Observation chính thức'),weight:'50%',
+        source:bi(lang,'VMG Observation form / Performance Tracker','Phiếu Observation / Performance Tracker VMG'),
+        how:bi(lang,'Monthly average of official observation scores. Observation itself is built from Preparation 10% + Methodology & Skills 45% + Classroom Management 45%.','Lấy trung bình các điểm Observation chính thức trong tháng. Bản thân Observation được cấu thành từ Preparation 10% + Methodology & Skills 45% + Classroom Management 45%.'),
+        evidence:bi(lang,'Observation record, criterion ratings, observer feedback, strengths and development areas.','Phiếu dự giờ, điểm từng tiêu chí, nhận xét người dự giờ, điểm mạnh và điểm cần phát triển.'),
+        interpretation:bi(lang,'>90 Excellent · 81–90 Very good · 70–80 Good · 60–69 Satisfactory · <60 Development / Training needed','>90 Xuất sắc · 81–90 Rất tốt · 70–80 Tốt · 60–69 Đạt · <60 Cần cải thiện / đào tạo')
+      },
+      {
+        no:'02',dimension:bi(lang,'Learner impact','Tác động tới học viên'),metric:'HVR · Learner Retention',weight:'30%',
+        source:bi(lang,'Learners at start + learner dropouts recorded for the month','Số HV đầu kỳ + số HV rụng được ghi nhận trong tháng'),
+        how:bi(lang,'HVR = (Learners at start − dropouts) ÷ learners at start × 100. The system calculates the percentage automatically.','HVR = (HV đầu kỳ − HV rụng) ÷ HV đầu kỳ × 100. Hệ thống tự tính tỷ lệ.'),
+        evidence:bi(lang,'Monthly learner base and dropout count. A missing learner base is shown as missing data, not silently scored as zero.','Số HV đầu kỳ và số HV rụng theo tháng. Nếu thiếu số HV đầu kỳ, hệ thống báo thiếu dữ liệu chứ không tự tính thành 0.'),
+        interpretation:bi(lang,'Numeric retention evidence. Target threshold remains configurable until the official policy is approved.','Minh chứng duy trì học viên dạng số. Ngưỡng target vẫn có thể cấu hình cho tới khi chính sách chính thức được phê duyệt.')
+      },
+      {
+        no:'03',dimension:bi(lang,'Business contribution','Đóng góp kinh doanh'),metric:bi(lang,'Revenue contribution index','Chỉ số doanh thu đóng góp'),weight:'20%',
+        source:bi(lang,'Monthly recorded revenue contribution','Doanh thu đóng góp được ghi nhận theo tháng'),
+        how:bi(lang,`Index = revenue ÷ ${KPI_REVENUE_TARGET.toLocaleString()} × 100, capped at 100.`,`Chỉ số = doanh thu ÷ ${KPI_REVENUE_TARGET.toLocaleString()} × 100, tối đa 100.`),
+        evidence:bi(lang,'Monthly recorded contribution; target is configurable.','Dữ liệu đóng góp theo tháng; mốc target có thể cấu hình.'),
+        interpretation:bi(lang,'Operating KPI component V1; the target is not treated as a permanent policy constant.','Thành phần KPI vận hành V1; mốc target chưa được coi là hằng số chính sách lâu dài.')
+      },
+      {
+        no:'04',dimension:bi(lang,'Professional reliability','Tính chuyên nghiệp & tuân thủ'),metric:bi(lang,'Approved issue count','Số lỗi / sự vụ đã duyệt'),weight:'0%',
+        source:bi(lang,'Director-approved cases with evidence','Sự vụ có evidence và đã được GĐTT phê duyệt'),
+        how:bi(lang,'Approved, pending and critical cases are counted separately by month.','Lỗi đã duyệt, đang chờ duyệt và nghiêm trọng được đếm riêng theo tháng.'),
+        evidence:bi(lang,'Case record, category, severity, evidence, approval and follow-up history.','Hồ sơ sự vụ, nhóm lỗi, mức độ, evidence, phê duyệt và lịch sử follow-up.'),
+        interpretation:bi(lang,'VISIBLE FOR TRANSPARENCY. No KPI deduction or monetary penalty is applied at this stage.','HIỂN THỊ ĐỂ MINH BẠCH. Hiện chưa trừ KPI và chưa áp dụng phạt tiền.')
+      }
+    ]
+    const competencies=[
+      {
+        domain:bi(lang,'Preparation & readiness','Chuẩn bị & sẵn sàng'),weight:'10% OBS',
+        evidence:bi(lang,'Lesson objectives, materials, readiness, class setup and programme alignment.','Mục tiêu bài học, học liệu, sự sẵn sàng, setup lớp và bám chương trình.'),
+        l1:bi(lang,'Often unprepared; objectives/materials are unclear or incomplete.','Thường chưa sẵn sàng; mục tiêu/học liệu chưa rõ hoặc thiếu.'),
+        l2:bi(lang,'Basic preparation is present but consistency or anticipation of learner needs is limited.','Có chuẩn bị cơ bản nhưng tính ổn định hoặc dự đoán nhu cầu HV còn hạn chế.'),
+        l3:bi(lang,'Consistently prepared, organised and aligned to intended outcomes.','Chuẩn bị ổn định, có tổ chức và bám đúng đầu ra dự kiến.'),
+        l4:bi(lang,'Highly purposeful preparation; anticipates learner needs and adapts resources intelligently.','Chuẩn bị có chủ đích cao; dự đoán nhu cầu HV và điều chỉnh học liệu linh hoạt.')
+      },
+      {
+        domain:bi(lang,'Teaching methodology & skills','Phương pháp & kỹ năng giảng dạy'),weight:'45% OBS',
+        evidence:bi(lang,'Clarity of instruction, modelling, ICQs/CCQs, practice design, feedback, assessment and language use.','Độ rõ của hướng dẫn, modelling, ICQ/CCQ, thiết kế luyện tập, feedback, assessment và sử dụng ngôn ngữ.'),
+        l1:bi(lang,'Teacher-led delivery dominates; checking and practice do not reliably support outcomes.','Giờ học còn nặng teacher-led; kiểm tra và luyện tập chưa hỗ trợ đầu ra ổn định.'),
+        l2:bi(lang,'Uses core techniques but execution varies and feedback may not lead to a stronger next attempt.','Có dùng kỹ thuật cốt lõi nhưng thực thi chưa đều; feedback chưa luôn dẫn tới lần làm tốt hơn.'),
+        l3:bi(lang,'Uses appropriate methodology, checks understanding and creates meaningful learner practice.','Dùng phương pháp phù hợp, kiểm tra hiểu và tạo đủ thực hành có ý nghĩa cho HV.'),
+        l4:bi(lang,'Selects and adapts methodology expertly; evidence shows strong learning impact and responsive feedback.','Lựa chọn/điều chỉnh phương pháp rất tốt; evidence cho thấy tác động học tập và feedback đáp ứng cao.')
+      },
+      {
+        domain:bi(lang,'Classroom management','Quản lý lớp học'),weight:'45% OBS',
+        evidence:bi(lang,'Participation, routines, pace, transitions, learner engagement, differentiation and classroom climate.','Mức tham gia, routines, pace, chuyển hoạt động, engagement, differentiation và không khí lớp.'),
+        l1:bi(lang,'Participation, pacing or routines frequently limit learning.','Mức tham gia, tốc độ hoặc routines thường cản trở việc học.'),
+        l2:bi(lang,'Basic control is present but participation, transitions or differentiation are inconsistent.','Có kiểm soát cơ bản nhưng participation, chuyển hoạt động hoặc differentiation chưa ổn định.'),
+        l3:bi(lang,'Maintains clear routines, productive pace and broad learner participation.','Duy trì routines rõ, pace hiệu quả và participation rộng.'),
+        l4:bi(lang,'Creates a highly responsive, inclusive and productive environment across learner profiles.','Tạo môi trường học đáp ứng cao, hòa nhập và hiệu quả với nhiều nhóm HV.')
+      },
+      {
+        domain:bi(lang,'Learner impact & retention','Tác động & duy trì học viên'),weight:bi(lang,'KPI evidence','Minh chứng KPI'),
+        evidence:bi(lang,'HVR, learner base, dropouts and learner/service evidence.','HVR, số HV đầu kỳ, số HV rụng và evidence học viên/dịch vụ.'),
+        l1:bi(lang,'Retention evidence is weak, missing or shows repeated unresolved learner loss signals.','Evidence duy trì yếu/thiếu hoặc xuất hiện lặp lại tín hiệu HV rụng chưa được xử lý.'),
+        l2:bi(lang,'Retention is monitored but follow-up and root-cause response are still developing.','Có theo dõi duy trì nhưng follow-up và xử lý nguyên nhân gốc còn đang phát triển.'),
+        l3:bi(lang,'Retention is stable with timely follow-up and clear learner-care actions.','Duy trì ổn định, follow-up kịp thời và có hành động chăm sóc HV rõ.'),
+        l4:bi(lang,'Shows strong learner impact and proactively prevents avoidable dropout patterns.','Cho thấy tác động mạnh tới HV và chủ động ngăn các pattern rụng có thể phòng tránh.')
+      },
+      {
+        domain:bi(lang,'Professional conduct & growth','Tác phong & phát triển nghề nghiệp'),weight:bi(lang,'Development evidence','Minh chứng phát triển'),
+        evidence:bi(lang,'Approved cases, punctuality/conduct evidence, coaching, training, reflection and follow-through.','Lỗi đã duyệt, evidence đúng giờ/tác phong, coaching, training, reflection và follow-through.'),
+        l1:bi(lang,'Repeated reliability concerns or limited response to feedback.','Có vấn đề lặp lại về độ tin cậy hoặc phản hồi với feedback còn hạn chế.'),
+        l2:bi(lang,'Generally cooperative but improvement actions are not yet consistent.','Nhìn chung hợp tác nhưng hành động cải thiện chưa ổn định.'),
+        l3:bi(lang,'Reliable, responsive to feedback and follows agreed development actions.','Đáng tin cậy, phản hồi tốt với feedback và thực hiện action phát triển đã thống nhất.'),
+        l4:bi(lang,'Models professional standards, owns development and contributes positively to peers/team.','Làm gương về chuẩn nghề nghiệp, chủ động phát triển và đóng góp tích cực cho đồng nghiệp/đội ngũ.')
+      }
+    ]
+    const issueLevels=[
+      {code:'01',level:bi(lang,'Routine monitoring','Theo dõi bình thường'),threshold:'0–1 / week',action:bi(lang,'Normal monitoring; no automatic negative conclusion.','Theo dõi định kỳ; không tự động kết luận tiêu cực.'),tone:'stable'},
+      {code:'02',level:bi(lang,'Watch','Theo dõi'),threshold:'2 / week or 3 / month',action:bi(lang,'Coaching + targeted observation / follow-up.','Coaching + dự giờ/follow-up có mục tiêu.'),tone:'watch'},
+      {code:'03',level:bi(lang,'High risk','Rủi ro cao'),threshold:'≥3 / week or ≥4 / month',action:bi(lang,'Formal review + retraining + cautious class allocation.','Đánh giá chính thức + đào tạo lại + thận trọng khi phân lớp.'),tone:'danger'},
+      {code:'04',level:bi(lang,'Critical','Nghiêm trọng'),threshold:bi(lang,'Any critical breach','Bất kỳ lỗi critical nào'),action:bi(lang,'Immediate escalation and formal review.','Nâng mức xử lý ngay và đánh giá chính thức.'),tone:'critical'}
+    ]
+    const process=[
+      ['01',bi(lang,'Capture evidence','Ghi nhận dữ liệu'),bi(lang,'Observation, learner base/dropouts, approved cases, training/coaching and other evidence are recorded in Teacher 360.','Observation, HV đầu kỳ/rụng, sự vụ đã duyệt, training/coaching và các evidence khác được ghi nhận trên Teacher 360.')],
+      ['02',bi(lang,'Calculate monthly KPI','Tính KPI tháng'),bi(lang,'Teacher 360 calculates HVR, weighted KPI and data completeness. Missing data stays visible as missing.','Teacher 360 tự tính HVR, KPI có trọng số và độ đầy đủ dữ liệu. Dữ liệu thiếu vẫn được hiển thị là thiếu.')],
+      ['03',bi(lang,'Explain the result','Giải thích kết quả'),bi(lang,'Teachers can see the component scores, rubric, evidence history and issue count — not just one final number.','GV thấy từng thành phần, rubric, lịch sử evidence và số lỗi — không chỉ một con số cuối cùng.')],
+      ['04',bi(lang,'Develop & follow up','Phát triển & follow-up'),bi(lang,'Coaching, training, re-observation and agreed development actions are linked back to the same portfolio.','Coaching, training, re-observation và action phát triển được nối lại vào cùng hồ sơ.')],
+    ]
+    return <>
+      <PageIntro
+        kicker={bi(lang,'TRANSPARENT EVALUATION · EVIDENCE · DEVELOPMENT','ĐÁNH GIÁ MINH BẠCH · MINH CHỨNG · PHÁT TRIỂN')}
+        title={teacherMode?bi(lang,'How I am evaluated','Tôi được đánh giá như thế nào?'):bi(lang,'Teacher Evaluation Framework','Khung đánh giá giáo viên')}
+        text={teacherMode?bi(lang,'This page explains exactly what is measured, where each number comes from, what the rating bands mean, and which evidence is used for your development.','Trang này giải thích rõ bạn được đo ở đâu, từng con số lấy từ nguồn nào, thang điểm có ý nghĩa gì và evidence nào được dùng cho hành trình phát triển của bạn.'):bi(lang,'One shared framework for KPI, observation, competency, issue-risk and development evidence across Teacher 360.','Một khung chung để hiểu KPI, observation, năng lực, ngưỡng sự vụ và evidence phát triển trên Teacher 360.')}
+        actions={<div className="page-action-row"><button className="btn secondary" onClick={()=>setView('kpi')}>% {bi(lang,'Open monthly KPI','Mở KPI tháng')}</button><button className="btn soft" onClick={()=>setView('observations')}>✓ {bi(lang,'Open observation history','Mở lịch sử dự giờ')}</button></div>}
+      />
+
+      <section className="evaluation-principles">
+        <article><i>01</i><div><b>{bi(lang,'No hidden score','Không có điểm ẩn')}</b><p>{bi(lang,'Every scored KPI component has a source, formula and visible weight.','Mỗi thành phần KPI có nguồn, công thức và trọng số hiển thị rõ.')}</p></div></article>
+        <article><i>02</i><div><b>{bi(lang,'Missing ≠ zero','Thiếu dữ liệu ≠ 0 điểm')}</b><p>{bi(lang,'Data completeness is shown separately so missing evidence is not silently treated as poor performance.','Độ đầy đủ dữ liệu được hiển thị riêng để evidence thiếu không bị âm thầm hiểu thành hiệu suất kém.')}</p></div></article>
+        <article><i>03</i><div><b>{bi(lang,'Evidence before conclusion','Evidence trước kết luận')}</b><p>{bi(lang,'Observation feedback, learner data and approved case evidence stay traceable in the portfolio.','Feedback dự giờ, dữ liệu HV và evidence sự vụ đã duyệt đều truy vết được trong hồ sơ.')}</p></div></article>
+        <article><i>04</i><div><b>{bi(lang,'Development, not only ranking','Phát triển, không chỉ xếp hạng')}</b><p>{bi(lang,'Competency evidence informs coaching, training, re-observation and career discussions.','Evidence năng lực được dùng để định hướng coaching, training, re-observation và trao đổi lộ trình.')}</p></div></article>
+      </section>
+
+      <section className="framework-section">
+        <div className="framework-section-head"><div><span>{bi(lang,'MATRIX 01 · MONTHLY PERFORMANCE','MA TRẬN 01 · HIỆU SUẤT THÁNG')}</span><h3>{bi(lang,'How the monthly KPI is built','KPI tháng được hình thành như thế nào')}</h3><p>{bi(lang,'The KPI score and the professional competency matrix are related but not identical: KPI measures monthly performance; competency evidence supports development and upgrade decisions.','Điểm KPI và ma trận năng lực có liên quan nhưng không đồng nhất: KPI đo hiệu suất theo tháng; ma trận năng lực hỗ trợ phát triển và quyết định nâng cấp độ.')}</p></div><span className="framework-status">{bi(lang,'Operating framework V1','Khung vận hành V1')}</span></div>
+        <div className="framework-table-wrap">
+          <div className="framework-table kpi-framework-table">
+            <div className="framework-tr framework-th"><span>#</span><span>{bi(lang,'Dimension / metric','Khía cạnh / chỉ số')}</span><span>{bi(lang,'Weight','Trọng số')}</span><span>{bi(lang,'Data source','Nguồn dữ liệu')}</span><span>{bi(lang,'Calculation','Cách tính')}</span><span>{bi(lang,'Evidence & interpretation','Evidence & cách hiểu')}</span></div>
+            {kpiRows.map(x=><div className="framework-tr" key={x.no}><span className="matrix-index">{x.no}</span><span><b>{x.dimension}</b><small>{x.metric}</small></span><span><strong>{x.weight}</strong></span><span><b>{x.source}</b></span><span><p>{x.how}</p></span><span><b>{x.interpretation}</b><small>{x.evidence}</small></span></div>)}
+          </div>
+        </div>
+        <div className="framework-band-row"><span><b>A · ≥90</b>{bi(lang,'High performance','Hiệu suất cao')}</span><span><b>B · 80–89.9</b>{bi(lang,'Strong / on track','Tốt / đúng hướng')}</span><span><b>C · 70–79.9</b>{bi(lang,'Needs targeted development','Cần phát triển có mục tiêu')}</span><span><b>D · &lt;70</b>{bi(lang,'Development priority','Ưu tiên cải thiện')}</span></div>
+      </section>
+
+      <section className="framework-section">
+        <div className="framework-section-head"><div><span>{bi(lang,'MATRIX 02 · PROFESSIONAL COMPETENCY','MA TRẬN 02 · NĂNG LỰC NGHỀ NGHIỆP')}</span><h3>{bi(lang,'What “good teaching” looks like in observable behaviour','Một giáo viên tốt được thể hiện qua hành vi quan sát được như thế nào')}</h3><p>{bi(lang,'Ratings 1–4 are used as a development language. The three Observation domains retain the official VMG weighting: Preparation 10%, Methodology & Skills 45%, Classroom Management 45%.','Rating 1–4 được dùng như ngôn ngữ phát triển. Ba nhóm Observation vẫn giữ trọng số VMG: Preparation 10%, Methodology & Skills 45%, Classroom Management 45%.')}</p></div><span className="framework-status soft">{bi(lang,'Development lens','Khung phát triển')}</span></div>
+        <div className="framework-table-wrap">
+          <div className="framework-table competency-framework-table">
+            <div className="framework-tr framework-th"><span>{bi(lang,'Competency domain','Nhóm năng lực')}</span><span>{bi(lang,'Evidence','Evidence')}</span><span>1 · {bi(lang,'Needs support','Cần hỗ trợ')}</span><span>2 · {bi(lang,'Developing','Đang phát triển')}</span><span>3 · {bi(lang,'Meets standard','Đạt chuẩn')}</span><span>4 · {bi(lang,'Strong / role model','Mạnh / hình mẫu')}</span></div>
+            {competencies.map(x=><div className="framework-tr" key={x.domain}><span><b>{x.domain}</b><small>{x.weight}</small></span><span><p>{x.evidence}</p></span><span><p>{x.l1}</p></span><span><p>{x.l2}</p></span><span><p>{x.l3}</p></span><span><p>{x.l4}</p></span></div>)}
+          </div>
+        </div>
+        <div className="framework-note"><b>{bi(lang,'Important distinction','Phân biệt quan trọng')}</b><p>{bi(lang,'Competency ratings are evidence for feedback, coaching, training and career/level discussions. They are not automatically converted into a monetary penalty or hidden KPI deduction.','Rating năng lực là evidence cho feedback, coaching, training và trao đổi level/lộ trình. Chúng không tự động chuyển thành phạt tiền hoặc khoản trừ KPI ẩn.')}</p></div>
+      </section>
+
+      <section className="framework-section">
+        <div className="framework-section-head"><div><span>{bi(lang,'MATRIX 03 · ISSUES & ACCOUNTABILITY','MA TRẬN 03 · SỰ VỤ & TRÁCH NHIỆM')}</span><h3>{bi(lang,'How issue counts are interpreted today','Số lỗi hiện được đọc như thế nào')}</h3><p>{bi(lang,'Only approved cases count as confirmed issue evidence. Pending cases are shown separately. Monetary penalty is not active.','Chỉ sự vụ đã được duyệt mới được tính là lỗi đã xác nhận. Case đang chờ được hiển thị riêng. Hiện chưa áp dụng phạt tiền.')}</p></div><span className="framework-status warning">{bi(lang,'PENALTY NOT ACTIVE','CHƯA ÁP DỤNG PHẠT')}</span></div>
+        <div className="issue-framework-grid">{issueLevels.map(x=><article className={`issue-framework-card ${x.tone}`} key={x.code}><i>{x.code}</i><div><span>{x.threshold}</span><h4>{x.level}</h4><p>{x.action}</p></div></article>)}</div>
+        <div className="framework-note warning"><b>{bi(lang,'Future-ready, but not enforced now','Đã chuẩn bị dữ liệu cho tương lai nhưng hiện chưa áp dụng')}</b><p>{bi(lang,'Teacher 360 stores approved issue counts and a penalty field so a future approved policy can be implemented transparently. Until such policy is formally activated, penalty amount remains 0 / NOT APPLIED and issue counts do not deduct the KPI.','Teacher 360 lưu số lỗi đã duyệt và trường mức phạt để sau này có thể áp dụng chính sách đã được phê duyệt một cách minh bạch. Cho tới khi chính sách được kích hoạt chính thức, mức phạt vẫn là 0 / CHƯA ÁP DỤNG và số lỗi không bị trừ KPI.')}</p></div>
+      </section>
+
+      <section className="framework-section">
+        <div className="framework-section-head"><div><span>{bi(lang,'THE MONTHLY CYCLE','CHU TRÌNH HÀNG THÁNG')}</span><h3>{bi(lang,'From raw evidence to a development conversation','Từ dữ liệu thô đến trao đổi phát triển')}</h3></div></div>
+        <div className="framework-process">{process.map(x=><article key={x[0]}><i>{x[0]}</i><div><b>{x[1]}</b><p>{x[2]}</p></div></article>)}</div>
+      </section>
+
+      <section className="framework-visibility">
+        <div><span>{bi(lang,'WHAT THE TEACHER CAN SEE','GV NHÌN THẤY GÌ')}</span><h3>{bi(lang,'Your evaluation is not a black box.','Đánh giá của bạn không phải “hộp đen”.')}</h3></div>
+        <div className="visibility-grid">
+          <span>✓ {bi(lang,'Monthly KPI score + band','Điểm KPI tháng + xếp loại')}</span>
+          <span>✓ {bi(lang,'Component metrics + data completeness','Từng chỉ số thành phần + độ đầy đủ dữ liệu')}</span>
+          <span>✓ {bi(lang,'Observation history + feedback','Lịch sử Observation + feedback')}</span>
+          <span>✓ {bi(lang,'Learners at start + dropouts + HVR','HV đầu kỳ + HV rụng + HVR')}</span>
+          <span>✓ {bi(lang,'Approved / pending / critical issue counts','Số lỗi đã duyệt / chờ duyệt / critical')}</span>
+          <span>✓ {bi(lang,'Evidence, coaching, training and development actions','Evidence, coaching, training và action phát triển')}</span>
+        </div>
+      </section>
     </>
   }
 
@@ -897,11 +1046,28 @@ export default function HubClient({profile}){
       {Metric:bi(lang,'Approved issues','Lỗi đã duyệt'),Formula:bi(lang,'Count of Director-approved cases in the month','Số sự vụ đã được GĐTT duyệt trong tháng'),Weight:'0%',Rubric:bi(lang,'Visible for transparency. Not deducted from KPI while penalty policy is inactive.','Hiển thị minh bạch. Chưa trừ KPI khi chính sách phạt chưa kích hoạt.')},
       {Metric:bi(lang,'KPI band','Xếp loại KPI'),Formula:'A ≥90 · B 80–89.9 · C 70–79.9 · D <70',Weight:'—',Rubric:bi(lang,'Draft operating rubric V1, subject to R&D/BOD approval.','Rubric vận hành V1, chờ R&D/BOD phê duyệt chính thức.')}
     ]
-    const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows),wr=XLSX.utils.json_to_sheet(rubric)
+    const competencyMatrix=[
+      {Domain:bi(lang,'Preparation & readiness','Chuẩn bị & sẵn sàng'),Evidence:bi(lang,'Lesson objectives, materials, readiness, programme alignment','Mục tiêu, học liệu, sự sẵn sàng, bám chương trình'),Rating1:bi(lang,'Needs support','Cần hỗ trợ'),Rating2:bi(lang,'Developing','Đang phát triển'),Rating3:bi(lang,'Meets standard','Đạt chuẩn'),Rating4:bi(lang,'Strong / role model','Mạnh / hình mẫu'),ObservationWeight:'10%'},
+      {Domain:bi(lang,'Teaching methodology & skills','Phương pháp & kỹ năng giảng dạy'),Evidence:bi(lang,'Instruction, modelling, ICQ/CCQ, practice, feedback, assessment','Hướng dẫn, modelling, ICQ/CCQ, luyện tập, feedback, assessment'),Rating1:bi(lang,'Needs support','Cần hỗ trợ'),Rating2:bi(lang,'Developing','Đang phát triển'),Rating3:bi(lang,'Meets standard','Đạt chuẩn'),Rating4:bi(lang,'Strong / role model','Mạnh / hình mẫu'),ObservationWeight:'45%'},
+      {Domain:bi(lang,'Classroom management','Quản lý lớp học'),Evidence:bi(lang,'Participation, routines, pace, engagement, differentiation','Participation, routines, pace, engagement, differentiation'),Rating1:bi(lang,'Needs support','Cần hỗ trợ'),Rating2:bi(lang,'Developing','Đang phát triển'),Rating3:bi(lang,'Meets standard','Đạt chuẩn'),Rating4:bi(lang,'Strong / role model','Mạnh / hình mẫu'),ObservationWeight:'45%'},
+      {Domain:bi(lang,'Learner impact & retention','Tác động & duy trì học viên'),Evidence:bi(lang,'Learner base, dropouts, HVR, learner/service evidence','HV đầu kỳ, HV rụng, HVR, evidence HV/dịch vụ'),Rating1:bi(lang,'Needs support','Cần hỗ trợ'),Rating2:bi(lang,'Developing','Đang phát triển'),Rating3:bi(lang,'Meets standard','Đạt chuẩn'),Rating4:bi(lang,'Strong / role model','Mạnh / hình mẫu'),ObservationWeight:'—'},
+      {Domain:bi(lang,'Professional conduct & growth','Tác phong & phát triển nghề nghiệp'),Evidence:bi(lang,'Approved cases, coaching, training, reflection, follow-through','Lỗi đã duyệt, coaching, training, reflection, follow-through'),Rating1:bi(lang,'Needs support','Cần hỗ trợ'),Rating2:bi(lang,'Developing','Đang phát triển'),Rating3:bi(lang,'Meets standard','Đạt chuẩn'),Rating4:bi(lang,'Strong / role model','Mạnh / hình mẫu'),ObservationWeight:'—'}
+    ]
+    const issueMatrix=[
+      {Level:bi(lang,'Routine monitoring','Theo dõi bình thường'),Threshold:'0–1 / week',Action:bi(lang,'Routine monitoring; no automatic negative conclusion.','Theo dõi định kỳ; không tự động kết luận tiêu cực.'),Penalty:bi(lang,'Not applied','Chưa áp dụng')},
+      {Level:bi(lang,'Watch','Theo dõi'),Threshold:'2 / week or 3 / month',Action:bi(lang,'Coaching + targeted observation / follow-up.','Coaching + dự giờ/follow-up có mục tiêu.'),Penalty:bi(lang,'Not applied','Chưa áp dụng')},
+      {Level:bi(lang,'High risk','Rủi ro cao'),Threshold:'≥3 / week or ≥4 / month',Action:bi(lang,'Formal review + retraining + cautious allocation.','Đánh giá chính thức + đào tạo lại + thận trọng phân lớp.'),Penalty:bi(lang,'Not applied','Chưa áp dụng')},
+      {Level:bi(lang,'Critical','Nghiêm trọng'),Threshold:bi(lang,'Any critical breach','Bất kỳ lỗi critical nào'),Action:bi(lang,'Immediate escalation and formal review.','Nâng mức xử lý ngay và đánh giá chính thức.'),Penalty:bi(lang,'Not applied','Chưa áp dụng')}
+    ]
+    const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows),wr=XLSX.utils.json_to_sheet(rubric),wc=XLSX.utils.json_to_sheet(competencyMatrix),wi=XLSX.utils.json_to_sheet(issueMatrix)
     ws['!cols']=[10,28,14,12,10,16,14,12,15,10,18,14,14,14,12,20,18,18,14].map(w=>({wch:w}))
     wr['!cols']=[24,52,12,80].map(w=>({wch:w}))
+    wc['!cols']=[34,62,20,20,20,22,18].map(w=>({wch:w}))
+    wi['!cols']=[24,28,66,18].map(w=>({wch:w}))
     XLSX.utils.book_append_sheet(wb,ws,bi(lang,'Monthly KPI','KPI tháng'))
-    XLSX.utils.book_append_sheet(wb,wr,bi(lang,'Rubric','Rubric'))
+    XLSX.utils.book_append_sheet(wb,wr,bi(lang,'KPI rubric','Rubric KPI'))
+    XLSX.utils.book_append_sheet(wb,wc,bi(lang,'Competency matrix','Ma trận năng lực'))
+    XLSX.utils.book_append_sheet(wb,wi,bi(lang,'Issue thresholds','Ngưỡng sự vụ'))
     const scopeName=profile.role==='teacher'?(profile.teacher_code||'Teacher'):(profile.home_centre_code||profile.region_no?`Scope-${profile.home_centre_code||profile.region_no}`:'All-System')
     XLSX.writeFile(wb,`VMG_Teacher_KPI_${scopeName}_${month}.xlsx`)
   }
